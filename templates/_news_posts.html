@@ -1,0 +1,103 @@
+{% for post in posts %}
+<div class="card shadow-sm mb-3" style="--i: {{ loop.index0 }};">
+    <div class="card-body">
+        <div class="d-flex align-items-start">
+            <!-- Profile Pic -->
+            <div class="position-relative d-inline-block me-3">
+                <a href="{{ url_for('view_profile', student_id=post.user_id) }}" class="text-decoration-none profile-link" data-user-id="{{ post.user_id }}">
+                    {% if post.profile_pic %}
+                        <img src="{{ url_for('static', filename='media/' + post.profile_pic) }}" class="rounded-circle" style="width: 45px; height: 45px; object-fit: cover;">
+                    {% elif post.is_admin %}
+                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white" style="width: 45px; height: 45px; font-size: 20px;">🛡️</div>
+                    {% else %}
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white" style="width: 45px; height: 45px; font-size: 20px;">{{ post.user_name[0] | upper }}</div>
+                    {% endif %}
+                </a>
+            </div>
+            
+            <!-- Post Content -->
+            <div class="w-100">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="mb-0 fw-bold">
+                            <a href="{{ url_for('view_profile', student_id=post.user_id) }}" class="text-decoration-none text-dark profile-link" data-user-id="{{ post.user_id }}">{{ post.user_name }}</a>
+                            {% if post.is_admin %}<span class="badge bg-primary small">Admin</span>{% else %}<span class="badge bg-secondary small">{{post.department}}</span>{% endif %}
+                        </h6>
+                        <small class="text-muted">{{ post.timestamp | time_ago }}</small>
+                    </div>
+                    {% if (session.get('student') and session.get('student') == post.user_id) or session.get('admin') %}
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="javascript:void(0);" onclick="document.getElementById('post-edit-form-{{ post.id }}').classList.remove('d-none'); document.getElementById('post-content-text-{{ post.id }}').classList.add('d-none');" class="text-primary text-decoration-none small" title="Edit">✏️</a>
+                        <a href="{{ url_for('delete_news_post', post_id=post.id) }}" class="btn-close" style="font-size: 0.8rem;" onclick="return confirm('Delete this post?')"></a>
+                    </div>
+                    {% endif %}
+                </div>
+                <p id="post-content-text-{{ post.id }}" class="mt-2 mb-0" style="white-space: pre-wrap;">{{ post.content }}</p>
+                <form action="{{ url_for('edit_news_post', post_id=post.id) }}" method="POST" class="d-none mt-2" id="post-edit-form-{{ post.id }}">
+                    <textarea name="content" class="form-control mb-2" rows="3" required>{{ post.content }}</textarea>
+                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('post-edit-form-{{ post.id }}').classList.add('d-none'); document.getElementById('post-content-text-{{ post.id }}').classList.remove('d-none');">Cancel</button>
+                </form>
+
+                {% if post.image_file %}
+                <div class="mt-3">
+                    {% if post.is_video %}
+                        <video controls class="img-fluid rounded">
+                            <source src="{{ url_for('static', filename='media/' + post.image_file) }}">
+                            Your browser does not support the video tag.
+                        </video>
+                    {% else %}
+                        <img src="{{ url_for('static', filename='media/' + post.image_file) }}" class="img-fluid rounded" alt="News post image">
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <!-- Actions -->
+                <div class="d-flex align-items-center mt-3 pt-2 border-top">
+                    <a href="javascript:void(0)" onclick="likeNewsPost('{{ post.id }}')" id="news-like-btn-{{ post.id }}" class="text-decoration-none me-3">
+                        {% if post.user_liked %}❤️{% else %}🤍{% endif %} <span class="text-muted">{{ post.like_count }}</span>
+                    </a>
+                    <span class="text-muted small" id="news-comment-count-{{ post.id }}">💬 {{ post.comments|length }} Comments</span>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="mt-3 bg-light p-2 rounded {% if not post.comments %}d-none{% endif %}" id="news-comments-container-{{ post.id }}">
+                    {% for comment in post.comments %}
+                    <div class="d-flex justify-content-between mb-1">
+                        <div class="d-flex align-items-start w-100 me-2" id="comment-text-{{ comment.id }}">
+                            <div class="position-relative d-inline-block me-2">
+                                <a href="{{ url_for('view_profile', student_id=comment.user_id) }}" class="text-decoration-none">
+                                    <i class="fas fa-user-circle text-muted" style="font-size: 20px;"></i>
+                                </a>
+                            </div>
+                            <div>
+                                <strong class="small"><a href="{{ url_for('view_profile', student_id=comment.user_id) }}" class="text-decoration-none text-dark profile-link" data-user-id="{{ comment.user_id }}">{{ comment.user_name }}</a>:</strong> <span class="small">{{ comment.content }}</span>
+                            </div>
+                        </div>
+                        <form action="{{ url_for('edit_news_comment', comment_id=comment.id) }}" method="POST" class="d-none w-100 me-2" id="edit-form-{{ comment.id }}">
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="content" class="form-control" value="{{ comment.content }}" required>
+                                <button type="submit" class="btn btn-primary">Save</button>
+                                <button type="button" class="btn btn-secondary" onclick="document.getElementById('edit-form-{{ comment.id }}').classList.add('d-none'); document.getElementById('comment-text-{{ comment.id }}').classList.remove('d-none'); document.getElementById('comment-actions-{{ comment.id }}').classList.remove('d-none');">Cancel</button>
+                            </div>
+                        </form>
+                        {% if (session.get('student') and session.get('student') == comment.user_id) or session.get('admin') %}
+                        <div id="comment-actions-{{ comment.id }}" class="text-nowrap">
+                            <a href="javascript:void(0);" onclick="document.getElementById('edit-form-{{ comment.id }}').classList.remove('d-none'); document.getElementById('comment-text-{{ comment.id }}').classList.add('d-none'); document.getElementById('comment-actions-{{ comment.id }}').classList.add('d-none');" class="text-primary small text-decoration-none me-2" title="Edit">✏️</a>
+                            <a href="{{ url_for('delete_news_comment', comment_id=comment.id) }}" class="text-danger small text-decoration-none" onclick="return confirm('Delete comment?')" title="Delete">&times;</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Add Comment -->
+                <form onsubmit="postNewsComment(event, '{{ post.id }}')" class="mt-2 d-flex">
+                    <input type="text" name="content" class="form-control form-control-sm me-2" placeholder="Write a comment..." required>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Reply</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}

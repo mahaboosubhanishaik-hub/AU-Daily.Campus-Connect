@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-lg rounded-4">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="fas fa-poll-h fa-lg"></i>
+                    </div>
+                    <h3 class="fw-bold">Create a Poll</h3>
+                    <p class="text-muted">Ask the campus community a question</p>
+                </div>
+
+                <form method="POST">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-muted">QUESTION</label>
+                        <input type="text" name="question" class="form-control bg-light border-0 py-3 rounded-3" placeholder="e.g. Best Canteen Item?" required>
+                    </div>
+                    
+                    <label class="form-label fw-bold small text-muted">OPTIONS</label>
+                    <div id="options-container" class="d-grid gap-2 mb-3">
+                        <input type="text" name="options" class="form-control bg-light border-0 py-2 rounded-3" placeholder="Option 1" required>
+                        <input type="text" name="options" class="form-control bg-light border-0 py-2 rounded-3" placeholder="Option 2" required>
+                    </div>
+                    
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none mb-4 ps-0" onclick="addOption()">
+                        <i class="fas fa-plus-circle me-1"></i> Add Another Option
+                    </button>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary rounded-pill py-2 fw-bold shadow-sm">Post Poll</button>
+                        <a href="{{ url_for('polls') }}" class="btn btn-light rounded-pill py-2 text-muted">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addOption() {
+    const container = document.getElementById('options-container');
+    const count = container.children.length + 1;
+    if(count <= 5) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = 'options';
+        input.className = 'form-control bg-light border-0 py-2 rounded-3';
+        input.placeholder = `Option ${count}`;
+        input.required = true;
+        container.appendChild(input);
+    } else {
+        alert("Maximum 5 options allowed.");
+    }
+}
+</script>
+{% endblock %}

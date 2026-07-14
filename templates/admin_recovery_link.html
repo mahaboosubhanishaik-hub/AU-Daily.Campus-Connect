@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4" style="max-width:760px"><div class="card border-0 shadow-sm rounded-4"><div class="card-body p-4"><h3 class="fw-bold">Reset Link Issued</h3>{% if emailed %}<div class="alert alert-success">A reset link was emailed to the student’s registered address.</div>{% else %}<div class="alert alert-warning">Email delivery failed. Share this link only after you have verified the student’s identity through an official channel.</div><label class="form-label fw-bold">15-minute reset link</label><textarea class="form-control" rows="4" readonly>{{ reset_url }}</textarea>{% endif %}<p class="small text-muted mt-3 mb-0">Student: {{ student.name }} ({{ student.student_id }}). The link becomes invalid after a password change or 15 minutes.</p><a class="btn btn-outline-secondary mt-3" href="{{ url_for('admin_recovery_requests') }}">Back to Requests</a></div></div></div>
+{% endblock %}

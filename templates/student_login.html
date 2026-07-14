@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .auth-shell {
+        min-height: calc(100vh - 150px);
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+    }
+
+    .auth-panel {
+        position: relative;
+        min-height: 620px;
+        padding: 48px;
+        color: #ffffff;
+        background:
+            linear-gradient(rgba(18, 52, 59, 0.82), rgba(18, 52, 59, 0.82)),
+            url("{{ url_for('static', filename='AUlogo.jpg') }}") center/220px no-repeat,
+            linear-gradient(135deg, #123b88 0%, #155eef 58%, #60a5fa 100%);
+    }
+
+    .auth-panel-content {
+        position: relative;
+        z-index: 1;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .auth-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .auth-title {
+        max-width: 560px;
+        margin: 28px 0 16px;
+        color: #ffffff;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-size: clamp(2.4rem, 5vw, 4.8rem);
+        font-weight: 800;
+        line-height: 0.96;
+        letter-spacing: 0;
+    }
+
+    .auth-copy {
+        max-width: 520px;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 1.02rem;
+        line-height: 1.8;
+    }
+
+    .auth-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        max-width: 560px;
+    }
+
+    .auth-stat {
+        border-left: 3px solid #60a5fa;
+        padding: 12px 14px;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .auth-stat strong {
+        display: block;
+        color: #ffffff;
+        font-size: 1rem;
+    }
+
+    .auth-stat span {
+        color: rgba(255, 255, 255, 0.74);
+        font-size: 0.78rem;
+    }
+
+    .auth-form-side {
+        display: flex;
+        align-items: center;
+        padding: 48px;
+        background:
+            linear-gradient(180deg, rgba(248, 250, 252, 0.9), #ffffff 42%),
+            #ffffff;
+    }
+
+    .auth-card {
+        width: 100%;
+        max-width: 430px;
+        margin: 0 auto;
+    }
+
+    .auth-logo {
+        width: 56px;
+        height: 56px;
+        object-fit: cover;
+        border-radius: 8px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    .auth-heading {
+        margin-top: 24px;
+        color: #0f172a;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: 0;
+    }
+
+    .auth-subtitle {
+        color: #64748b;
+        line-height: 1.7;
+    }
+
+    .auth-label {
+        color: #334155;
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .auth-input-group {
+        min-height: 54px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #f8fafc;
+    }
+
+    .auth-input-group .input-group-text,
+    .auth-input-group .form-control,
+    .auth-input-group .btn {
+        border: 0;
+        background: transparent;
+    }
+
+    .auth-input-group .form-control {
+        color: #0f172a;
+        font-weight: 600;
+    }
+
+    .auth-input-group:focus-within {
+        border-color: #155eef;
+        box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.14);
+    }
+
+    .auth-submit {
+        min-height: 52px;
+        border-radius: 8px !important;
+    }
+
+    .auth-switch {
+        border-top: 1px solid #e2e8f0;
+        margin-top: 28px;
+        padding-top: 22px;
+    }
+
+    @media (max-width: 991.98px) {
+        .auth-shell {
+            grid-template-columns: 1fr;
+        }
+
+        .auth-panel {
+            min-height: auto;
+            padding: 34px 24px;
+        }
+
+        .auth-stats {
+            grid-template-columns: 1fr;
+            margin-top: 28px;
+        }
+
+        .auth-form-side {
+            padding: 34px 22px;
+        }
+    }
+</style>
+
+<section class="auth-shell">
+    <div class="auth-panel">
+        <div class="auth-panel-content">
+            <div>
+                <span class="auth-kicker"><i class="fas fa-graduation-cap"></i> Student Workspace</span>
+                <h1 class="auth-title">Campus life, organized in one place.</h1>
+                <p class="auth-copy">Access events, academic resources, doubts, opportunities, campus news, and your personal dashboard through a secure student portal.</p>
+            </div>
+
+            <div class="auth-stats" aria-label="Platform highlights">
+                <div class="auth-stat">
+                    <strong>Resources</strong>
+                    <span>Notes and study material</span>
+                </div>
+                <div class="auth-stat">
+                    <strong>Community</strong>
+                    <span>Doubts, polls, and news</span>
+                </div>
+                <div class="auth-stat">
+                    <strong>Careers</strong>
+                    <span>Opportunities and updates</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="auth-form-side">
+        <div class="auth-card">
+            <img src="{{ url_for('static', filename='AUlogo.jpg') }}" alt="AU Logo" class="auth-logo">
+            <h2 class="auth-heading">Student Sign In</h2>
+            <p class="auth-subtitle mb-4">Use your student ID or registered email to continue.</p>
+
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label auth-label">Student ID or Email</label>
+                    <div class="input-group input-group-lg auth-input-group">
+                        <span class="input-group-text ps-3"><i class="fas fa-id-card text-primary"></i></span>
+                        <input type="text" name="student_id" class="form-control" placeholder="e.g. 32112345001" required>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label auth-label">Password</label>
+                    <div class="input-group input-group-lg auth-input-group">
+                        <span class="input-group-text ps-3"><i class="fas fa-lock text-primary"></i></span>
+                        <input type="password" name="password" id="passwordInput" class="form-control" placeholder="Enter password" required>
+                        <button type="button" class="btn px-3" id="togglePasswordBtn" aria-label="Show password">
+                            <i class="fas fa-eye text-muted"></i>
+                        </button>
+                    </div>
+                    <div class="text-end mt-2">
+                        <a href="{{ url_for('forgot_password') }}" class="text-decoration-none small fw-bold">Forgot password?</a>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold auth-submit">Sign In</button>
+            </form>
+
+            <div class="auth-switch text-center">
+                <p class="small text-muted mb-2">New student? <a href="{{ url_for('student_register') }}" class="fw-bold text-decoration-none">Create account</a></p>
+                <a href="{{ url_for('admin_login') }}" class="small text-muted text-decoration-none">Switch to admin login</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    const toggleBtn = document.getElementById('togglePasswordBtn');
+    const passwordInput = document.getElementById('passwordInput');
+
+    if (toggleBtn && passwordInput) {
+        toggleBtn.addEventListener('click', function() {
+            const isPassword = passwordInput.getAttribute('type') === 'password';
+            passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+            this.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+            this.querySelector('i').classList.toggle('fa-eye');
+            this.querySelector('i').classList.toggle('fa-eye-slash');
+        });
+    }
+
+    localStorage.removeItem('auBannerDismissed');
+</script>
+{% endblock %}

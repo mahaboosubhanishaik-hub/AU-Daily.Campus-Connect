@@ -1,0 +1,241 @@
+/* Modern theme using CSS variables (light defaults).
+   Dark overrides are handled in `dark_mode.css` via the `html.dark-mode` selector.
+*/
+
+:root {
+	/* New Professional & Elegant Theme */
+	--primary: #4338ca; /* Deep Indigo */
+	--primary-2: #312e81; /* Darker Indigo */
+	--accent: #6366f1; /* Lighter Indigo for accents */
+	--bg: #f8f9fa; /* Clean off-white background */
+	--surface: #ffffff; /* Pure white for cards/surfaces */
+	--muted: #6b7280; /* Neutral gray for muted text */
+	--text: #2d3748; /* Dark slate gray for high readability */
+	--card-radius: 16px;
+	--radius-sm: 8px;
+	--shadow-1: 0 4px 12px rgba(67, 56, 202, 0.08);
+	--shadow-2: 0 10px 30px rgba(67, 56, 202, 0.1);
+	--focus: 0 0 0 4px rgba(67, 56, 202, 0.15);
+	--glass: rgba(255, 255, 255, 0.7);
+	--font-sans: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Heading font */
+:root {
+	--font-heading: 'Inter', Georgia, 'Times New Roman', serif;
+}
+
+/* Base typography and layout */
+html,body {
+	height: 100%;
+}
+body {
+	font-family: var(--font-sans);
+	background: var(--bg);
+	color: var(--text);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	line-height: 1.45;
+}
+
+/* Headings use a display serif for elegance */
+h1,h2,h3,h4,h5,h6 { 
+	font-family: var(--font-heading); 
+	color: var(--text); 
+	font-weight: 600;
+}
+
+/* Feature icon utilities */
+.feature-icon {
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.5rem;
+}
+.feature-accent-1 { background: rgba(212,175,55,0.12); color: var(--primary); }
+.feature-accent-2 { background: rgba(255,193,7,0.10); color: #b07b00; }
+.feature-accent-3 { background: rgba(34,197,94,0.08); color: #16a34a; }
+.feature-accent-4 { background: rgba(6,182,212,0.08); color: #0891b2; }
+.feature-accent-5 { background: rgba(99,102,241,0.08); color: #6366f1; }
+.feature-accent-6 { background: rgba(236,72,153,0.08); color: #db2777; }
+
+.card .card-title { color: var(--text); font-weight: 600; }
+
+
+/* Containers and cards */
+.card {
+	border: 1px solid #e2e8f0;
+	background: var(--surface);
+	border-radius: var(--card-radius);
+	box-shadow: var(--shadow-1);
+}
+.card:hover { box-shadow: var(--shadow-2); transform: translateY(-2px); }
+
+/* Buttons */
+.btn-primary {
+	background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%) !important;
+	border: none;
+	color: #ffffff !important;
+	box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
+}
+.btn-outline-secondary {
+	background: transparent;
+	border-radius: 999px;
+}
+
+/* Navbar tweaks */
+.navbar.fixed-top {
+	background: var(--glass) !important;
+	backdrop-filter: blur(10px) !important;
+	-webkit-backdrop-filter: blur(10px) !important;
+	border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+}
+
+/* Brand color override */
+.navbar .navbar-brand { color: var(--primary) !important; font-weight: 700; }
+
+/* Make primary-colored elements use the new primary color */
+.mobile-fab { background: var(--primary) !important; color: #0b1220 !important; }
+.stat-card { border-left-color: var(--primary) !important; }
+.stat-icon { background: rgba(67, 56, 202, 0.1); color: var(--primary); }
+
+/* Buttons with blue outline */
+.btn-outline-blue {
+	color: var(--primary);
+	border-color: rgba(37, 99, 235, 0.35);
+}
+
+/* Links and subtle accents */
+a, .nav-link { color: #0b1220; }
+a:hover, .nav-link:hover { color: var(--primary); }
+
+/* Small helper utilities */
+.rounded-md { border-radius: var(--radius-sm) !important; }
+.muted { color: var(--muted) !important; }
+
+/* Theme toggle button */
+#themeToggleBtn {
+	min-width: 40px;
+}
+
+/* Responsive fixes */
+@media (max-width: 767.98px) {
+	.navbar { padding: .5rem 1rem; }
+}
+
+/* Small accessible focus state */
+a:focus, button:focus, input:focus {
+	box-shadow: var(--focus);
+	outline: none;
+}
+
+/* Keep bootstrap utilities available and add subtle transitions */
+* { transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease; }
+
+/* ========================= */
+/* AUTHENTICATION PAGES      */
+/* ========================= */
+/* New Split-Screen Login Design */
+.auth-wrapper {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+}
+
+.auth-left {
+    width: 45%;
+    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1920&q=80');
+    background-size: cover;
+    background-position: center;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 3rem;
+}
+
+.auth-right {
+    width: 55%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    background-color: var(--surface);
+}
+
+.auth-form-container {
+    max-width: 400px;
+    width: 100%;
+}
+
+.auth-form-container .form-control {
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid #e2e8f0;
+    background-color: #f8f9fa;
+}
+
+.auth-form-container .btn-primary {
+    padding: 0.85rem;
+    font-weight: 600;
+    width: 100%;
+}
+
+/* Responsive adjustments for login pages */
+@media (max-width: 992px) {
+    .auth-left {
+        display: none; /* Hide image panel on smaller screens */
+    }
+    .auth-right {
+        width: 100%;
+    }
+}
+
+/* ========================= */
+/* WELCOME PAGE STYLES       */
+/* ========================= */
+
+.welcome-hero {
+    background: linear-gradient(145deg, var(--primary) 0%, var(--primary-2) 100%);
+    background-image: 
+        linear-gradient(145deg, rgba(67, 56, 202, 0.95) 0%, rgba(49, 46, 129, 0.98) 100%),
+        radial-gradient(circle at top left, rgba(255,255,255,0.05) 0%, transparent 30%),
+        radial-gradient(circle at bottom right, rgba(255,255,255,0.05) 0%, transparent 35%);
+    color: #ffffff;
+    padding: 6rem 0;
+    text-align: center;
+}
+
+.welcome-hero h1 {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.welcome-hero .lead {
+    color: rgba(255, 255, 255, 0.8);
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+}
+
+.feature-card {
+    background-color: var(--surface);
+    border: 1px solid #e2e8f0;
+    border-radius: var(--card-radius);
+    padding: 2rem;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-2);
+}

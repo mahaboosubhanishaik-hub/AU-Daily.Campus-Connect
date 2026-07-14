@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#155eef">
+    
+    <!-- PWA Manifest and Icons -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='AUlogo.jpg') }}">
+    
+    <title>AUDaily - Campus Connect</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* --- Professional Campus Theme Overrides --- */
+        :root {
+            --bs-primary: #155eef;
+            --bs-primary-rgb: 21, 94, 239;
+            --bs-secondary: #334155;
+            --bs-body-bg: #f4f8ff;
+            --bs-body-color: #14213d;
+            --theme-ink: #14213d;
+            --theme-panel: #ffffff;
+            --theme-line: rgba(21, 94, 239, 0.12);
+            --theme-accent: #60a5fa;
+            --bright-red: #155eef;
+            --bs-font-sans-serif: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        }
+        
+        body {
+            background:
+                radial-gradient(circle at top left, rgba(37, 99, 235, 0.13), transparent 34rem),
+                linear-gradient(180deg, #ffffff 0%, var(--bs-body-bg) 42%, #edf4ff 100%);
+            color: var(--bs-body-color);
+            letter-spacing: 0;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.92) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+            border-bottom: 1px solid var(--theme-line) !important;
+            box-shadow: 0 12px 36px rgba(23, 37, 42, 0.08) !important;
+        }
+
+        .navbar-brand {
+            color: var(--theme-ink) !important;
+            font-weight: 800;
+        }
+
+        .navbar .nav-link {
+            color: #264166;
+            font-weight: 650;
+        }
+
+        .navbar .nav-link:hover,
+        .navbar .nav-link:focus {
+            color: var(--bs-primary);
+        }
+
+        /* Professional Cards */
+        .card {
+            background: var(--theme-panel);
+            box-shadow: 0 14px 38px rgba(23, 37, 42, 0.08);
+            border-radius: 8px;
+            border: 1px solid var(--theme-line);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 48px rgba(23, 37, 42, 0.12);
+        }
+
+        /* Elegant Buttons */
+        .btn {
+            font-weight: 700;
+            letter-spacing: 0;
+            transition: all 0.2s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #155eef 100%);
+            border: none;
+            box-shadow: 0 12px 24px rgba(21, 94, 239, 0.24);
+            color: white !important;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1248c4 100%);
+            transform: translateY(-1px);
+        }
+
+        .text-primary {
+            color: var(--bs-primary) !important;
+        }
+
+        /* --- Admin Dashboard Specialized Components --- */
+        .stat-card {
+            border-left: 4px solid var(--bs-primary);
+            background: var(--theme-panel);
+        }
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: rgba(21, 94, 239, 0.12);
+            color: var(--bs-primary);
+            font-size: 1.25rem;
+        }
+        .metric-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--bs-body-color);
+            line-height: 1.2;
+        }
+        .metric-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0;
+            color: #5d6f8d;
+        }
+
+        /* Mobile Bottom Nav Styles */
+        .mobile-bottom-nav {
+            position: fixed;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            width: calc(100vw - 30px);
+            max-width: calc(100vw - 30px);
+            box-sizing: border-box;
+            overflow: hidden;
+            height: 65px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1040;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 18px;
+            box-shadow: 0 18px 42px rgba(23, 37, 42, 0.16);
+            border: 1px solid var(--theme-line);
+        }
+        .nav-item-mobile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--bs-secondary);
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 500;
+            flex-grow: 1;
+            min-width: 0;
+            height: 100%;
+            transition: color 0.3s ease;
+        }
+        .nav-item-mobile.active, .nav-item-mobile:hover {
+            color: var(--bs-primary);
+        }
+        .nav-item-mobile i {
+            font-size: 1.25rem;
+            margin-bottom: 4px;
+            transition: transform 0.3s ease;
+        }
+        .nav-item-mobile:hover i {
+            transform: translateY(-3px);
+        }
+        .mobile-fab {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 55px;
+            height: 55px;
+            background: linear-gradient(135deg, #60a5fa, #155eef);
+            color: white !important;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(21, 94, 239, 0.34);
+            border: 4px solid #fff;
+            font-size: 1.5rem;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .mobile-fab:hover {
+            transform: translateX(-50%) translateY(-5px) scale(1.1);
+            box-shadow: 0 12px 25px rgba(37, 99, 235, 0.5);
+        }
+        .mobile-fab:active {
+            transform: translateX(-50%) scale(0.9) rotate(45deg);
+        }
+        /* Smooth Page Load Animation */
+        @keyframes fadeSlideUp {
+            0% { opacity: 0; transform: translateY(15px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-content {
+            animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        /* Body padding for mobile to prevent content hiding behind bottom nav */
+        @media (max-width: 991.98px) {
+            body {
+                padding-bottom: 80px !important;
+                overflow-x: hidden;
+            }
+            html {
+                overflow-x: hidden;
+            }
+        }
+
+        body.modal-open .mobile-bottom-nav {
+            display: none !important;
+        }
+        .report-fab { position: fixed; right: 24px; bottom: 28px; z-index: 1035; border-radius: 999px; box-shadow: 0 12px 26px rgba(220, 53, 69, .3); }
+        @media (max-width: 991.98px) { .report-fab { right: 18px; bottom: 92px; } }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+        <div class="container">
+            <a class="navbar-brand text-primary d-flex align-items-center" href="{{ url_for('home') }}">
+                <img src="{{ url_for('static', filename='AUlogo.jpg') }}" alt="AU Logo" height="32" class="me-2 rounded">
+                AUDaily
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('home') }}">Home</a></li>
+                    {% if session.get('student') or session.get('admin') %}
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('campus_news') }}">News</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('polls') }}">Polls</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('resources') }}">Resources</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('resume_analyzer') }}">Resume Analyzer</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('opportunities') }}">Opportunities</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('doubts') }}">Doubts</a></li>
+                    {% endif %}
+
+                    {% if session.get('student') %}
+                        <li class="nav-item mx-2 d-none d-lg-flex align-items-center">
+                            <a class="btn btn-primary btn-sm rounded-pill shadow-sm px-3" href="{{ url_for('add_event') }}">
+                                <i class="fas fa-plus me-1"></i> Post Event
+                            </a>
+                        </li>
+                        <li class="nav-item position-relative mx-2">
+                            <a class="nav-link" href="{{ url_for('notifications') }}">
+                                <i class="fas fa-bell"></i>
+                                {% if unread_count and unread_count > 0 %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">
+                                    {{ unread_count }}
+                                </span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li class="nav-item position-relative mx-2">
+                            <a class="nav-link" href="{{ url_for('inbox') }}">
+                                <i class="fas fa-envelope"></i>
+                                {% if unread_message_count and unread_message_count > 0 %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">{{ unread_message_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown ms-2">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                                <div class="position-relative d-inline-block">
+                                    {% if current_user_pic %}
+                                    <img src="{{ url_for('static', filename='media/' + current_user_pic) }}" class="rounded-circle object-fit-cover shadow-sm border border-white" style="width: 32px; height: 32px;">
+                                    {% else %}
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                        <i class="fas fa-user small"></i>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg">
+                                <li><a class="dropdown-item" href="{{ url_for('student_profile') }}"><i class="fas fa-id-badge me-2 text-muted"></i> My Profile</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('gallery') }}"><i class="fas fa-images me-2 text-success"></i> Gallery</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('feedback') }}"><i class="fas fa-lightbulb me-2 text-muted"></i> Feedback</a></li>
+                                <li><a class="dropdown-item text-danger" href="{{ url_for('submit_report') }}"><i class="fas fa-flag me-2"></i> Report an Issue</a></li>
+                                <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+                            </ul>
+                        </li>
+                    {% elif session.get('admin') %}
+                        <li class="nav-item mx-2 d-none d-lg-flex align-items-center">
+                            <a class="btn btn-primary btn-sm rounded-pill shadow-sm px-3" href="{{ url_for('add_event') }}">
+                                <i class="fas fa-plus me-1"></i> Post Event
+                            </a>
+                        </li>
+                        <li class="nav-item position-relative mx-2">
+                            <a class="nav-link" href="{{ url_for('admin_notifications') }}" title="Admin notifications">
+                                <i class="fas fa-bell"></i>
+                                {% if admin_unread_count %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">{{ admin_unread_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('gallery') }}">Gallery</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_profile') }}">Profile</a></li>
+                        <li class="nav-item"><a class="nav-link text-danger" href="{{ url_for('logout') }}">Logout</a></li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin_login') }}">Admin Login</a>
+                        </li>
+                        <li class="nav-item ms-3">
+                            <a class="btn btn-primary rounded-pill px-4 shadow-sm" href="{{ url_for('home') }}">Get Started</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Global Announcements & Flash Messages -->
+    <div class="container" style="margin-top: 90px;">
+        <!-- AU 100 Years Banner -->
+        {% if not session.get('student') and not session.get('admin') %}
+        <div id="auCentenaryBanner" class="alert alert-dismissible fade show shadow border-0 align-items-center mb-3 d-none position-relative overflow-hidden hover-banner" role="alert" style="background: linear-gradient(135deg, #8B0000 0%, #FF0000 100%); color: #ffffff;">
+            <i class="fas fa-award fa-3x me-3 opacity-75 position-relative" style="z-index: 1;"></i>
+            <div class="position-relative" style="z-index: 1;">
+                <h5 class="fw-bold mb-1">Andhra University: 100 Years of Excellence</h5>
+                <p class="mb-0 fw-medium">Celebrating a glorious century of knowledge, heritage, and innovation (1926 - 2026). Proud to be part of the legacy!</p>
+            </div>
+            <button type="button" id="auCentenaryBannerClose" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="z-index: 2;"></button>
+        </div>
+
+        <style>
+            .hover-banner {
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+            .hover-banner:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+            }
+        </style>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const banner = document.getElementById('auCentenaryBanner');
+                const closeBtn = document.getElementById('auCentenaryBannerClose');
+                
+                // Check if banner exists before attempting to manipulate it
+                if (banner && !localStorage.getItem('auBannerDismissed')) {
+                    banner.classList.remove('d-none');
+                    banner.classList.add('d-flex');
+                    
+                    const welcomeBadge = document.getElementById('auCentenaryBadge');
+                    if (welcomeBadge) {
+                        welcomeBadge.classList.remove('d-none');
+                    }
+                    
+                     // Add 'show' class to trigger fade-in animation
+                    setTimeout(() => {
+                        const badge = banner.querySelector('#auCentenaryBadge');
+                        if (badge) badge.classList.add('show');
+                    }, 100);
+                }
+                
+                // Save dismissal to localStorage forever
+                if (closeBtn && banner) {
+                    closeBtn.addEventListener('click', function() {
+                        localStorage.setItem('auBannerDismissed', 'true');
+                        
+                        // Forcefully hide the main banner to ensure it disappears
+                        banner.style.transition = 'opacity 0.3s ease';
+                        banner.style.opacity = '0';
+                        setTimeout(() => {
+                            banner.classList.remove('d-flex');
+                            banner.classList.add('d-none');
+                        }, 300);
+                        
+                        const welcomeBadge = document.getElementById('auCentenaryBadge');
+                        if (welcomeBadge) {
+                            // Apply a smooth fade-out transition
+                            welcomeBadge.style.transition = 'opacity 0.3s ease';
+                            welcomeBadge.style.opacity = '0';
+                            setTimeout(() => {
+                                welcomeBadge.classList.add('d-none');
+                            }, 300);
+                        }
+                    });
+                }
+            });
+        </script>
+        {% endif %}
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info alert-dismissible fade show shadow-sm border-0" role="alert">
+                        <i class="fas fa-info-circle me-2"></i> {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <div class="{% if request.endpoint and request.endpoint.startswith('admin_') or request.endpoint in ['view_allowed_students'] %}container-fluid{% else %}container{% endif %} py-4 mb-5 fade-in-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    {% if session.get('student') %}
+    <a href="{{ url_for('submit_report') }}" class="btn btn-danger report-fab px-3 py-2" title="Report spam, fake content, abuse, or a bug">
+        <i class="fas fa-flag me-1"></i> Report issue
+    </a>
+    {% endif %}
+
+    {% block modals %}{% endblock %}
+
+    <!-- Mobile Bottom Navigation -->
+    {% if session.get('student') or session.get('admin') %}
+    <nav class="mobile-bottom-nav d-lg-none">
+        <a href="{{ url_for('home') }}" class="nav-item-mobile {% if request.endpoint == 'home' %}active{% endif %}">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="{{ url_for('campus_news') }}" class="nav-item-mobile {% if request.endpoint == 'campus_news' %}active{% endif %}">
+            <i class="fas fa-newspaper"></i>
+            <span>News</span>
+        </a>
+        <div class="nav-item-mobile position-relative" style="flex-grow: 0.5;">
+            <a href="{{ url_for('add_event') }}" class="mobile-fab shadow">
+                <i class="fas fa-plus m-0"></i>
+            </a>
+        </div>
+        <a href="{{ url_for('inbox') }}" class="nav-item-mobile position-relative {% if request.endpoint in ['inbox', 'chat'] %}active{% endif %}">
+            <i class="fas fa-envelope"></i>
+            {% if unread_message_count and unread_message_count > 0 %}
+            <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.5rem; margin-top: 5px;">{{ unread_message_count }}</span>
+            {% endif %}
+            <span>Chat</span>
+        </a>
+        <a href="{% if session.get('student') %}{{ url_for('student_profile') }}{% else %}{{ url_for('admin_profile') }}{% endif %}" class="nav-item-mobile {% if request.endpoint in ['student_profile', 'admin_profile', 'view_profile', 'student_settings'] %}active{% endif %}">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </a>
+    </nav>
+    {% endif %}
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Add CSRF protection to every same-origin form and AJAX mutation.
+        const csrfToken = '{{ csrf_token }}';
+        document.addEventListener('submit', function (event) {
+            const form = event.target;
+            if (form.method.toLowerCase() !== 'get' && !form.querySelector('input[name="csrf_token"]')) {
+                const token = document.createElement('input');
+                token.type = 'hidden';
+                token.name = 'csrf_token';
+                token.value = csrfToken;
+                form.appendChild(token);
+            }
+        });
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = function (input, init = {}) {
+            const method = (init.method || (input instanceof Request && input.method) || 'GET').toUpperCase();
+            const url = typeof input === 'string' ? input : input.url;
+            if (method !== 'GET' && method !== 'HEAD' && new URL(url, window.location.origin).origin === window.location.origin) {
+                const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
+                headers.set('X-CSRF-Token', csrfToken);
+                init.headers = headers;
+            }
+            return nativeFetch(input, init);
+        };
+
+        // Deletion links are converted to same-origin POST forms with a CSRF token.
+        document.addEventListener('click', function (event) {
+            const link = event.target.closest('a[href*="/delete_"]');
+            if (!link || link.dataset.secureDelete) return;
+            const target = new URL(link.href, window.location.origin);
+            if (target.origin !== window.location.origin) return;
+            event.preventDefault();
+            link.dataset.secureDelete = 'true';
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = target.pathname + target.search;
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = 'csrf_token';
+            token.value = '{{ csrf_token }}';
+            form.appendChild(token);
+            document.body.appendChild(form);
+            form.submit();
+        });
+
+        // Older templates use links for actions. Keep those links working while
+        // ensuring actions are POST requests protected by the same CSRF token.
+        document.addEventListener('click', function (event) {
+            const link = event.target.closest('a[href]');
+            if (!link || link.dataset.secureAction) return;
+            const target = new URL(link.href, window.location.origin);
+            if (target.origin !== window.location.origin) return;
+            const actionPaths = [
+                /^\/like(?:_news)?\//, /^\/register_event\//, /^\/vote\//,
+                /^\/follow\//, /^\/resolve_item\//, /^\/toggle_task\//,
+                /^\/toggle_save_resource\//, /^\/notifications\/mark_(?:read|all_read)/,
+                /^\/admin\/resolve_report\//, /^\/logout$/
+            ];
+            if (!actionPaths.some(pattern => pattern.test(target.pathname))) return;
+            event.preventDefault();
+            link.dataset.secureAction = 'true';
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = target.pathname + target.search;
+            const token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = 'csrf_token';
+            token.value = csrfToken;
+            form.appendChild(token);
+            document.body.appendChild(form);
+            form.submit();
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+
+    <!-- Service Worker Registration for PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

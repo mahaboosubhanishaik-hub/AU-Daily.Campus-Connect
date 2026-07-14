@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 60vh;">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-lg border-0 p-3 rounded-4">
+            <div class="card-body text-center">
+                {% if student_pic %}
+                <img src="{{ url_for('static', filename='media/' + student_pic) }}" class="rounded-circle shadow-sm mb-3 border" style="width: 80px; height: 80px; object-fit: cover;">
+                {% else %}
+                <div class="bg-light text-secondary rounded-circle d-inline-flex align-items-center justify-content-center mb-3 shadow-sm border" style="width: 80px; height: 80px;">
+                    <i class="fas fa-user fa-2x"></i>
+                </div>
+                {% endif %}
+                
+                <h4 class="fw-bold mb-1">{{ student_name or 'Verify Account' }}</h4>
+                <p class="text-muted small mb-4">We sent a 4-digit code to <strong class="text-dark">{{ masked_email }}</strong>. It expires in 10 minutes.</p>
+                
+                <form method="POST">
+                    <div class="mb-4">
+                        <input type="text" name="otp" inputmode="numeric" pattern="[0-9]{4}" class="form-control bg-light py-3 border-0 text-center font-monospace fs-3 rounded-3" placeholder="----" maxlength="4" required autofocus>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-bold shadow-sm">Verify & Proceed</button>
+                </form>
+                
+                <div class="mt-4 pt-3 border-top">
+                    <p class="small text-muted mb-1">Didn't receive the code?</p>
+                    <a href="{{ url_for('resend_otp') }}" class="text-primary small text-decoration-none fw-bold"><i class="fas fa-redo-alt me-1"></i> Resend OTP</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

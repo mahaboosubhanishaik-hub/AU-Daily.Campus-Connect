@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid mt-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="bi bi-shield-lock text-danger me-2"></i>Report Management Center</h2>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label text-muted small mb-1">Filter by Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="Pending" {% if current_status == 'Pending' %}selected{% endif %}>Pending</option>
+                        <option value="In Progress" {% if current_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                        <option value="Resolved" {% if current_status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small mb-1">Filter by Type</label>
+                    <select name="type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="Spam" {% if current_type == 'Spam' %}selected{% endif %}>Spam</option>
+                        <option value="Fake Job" {% if current_type == 'Fake Job' %}selected{% endif %}>Fake Job</option>
+                        <option value="Abuse" {% if current_type == 'Abuse' %}selected{% endif %}>Abuse</option>
+                        <option value="Bug" {% if current_type == 'Bug' %}selected{% endif %}>Bug</option>
+                        <option value="Other" {% if current_type == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary px-4"><i class="bi bi-funnel me-1"></i> Apply Filters</button>
+                    <a href="{{ url_for('admin_reports') }}" class="btn btn-light ms-2">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reports Table -->
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">ID</th>
+                            <th>Priority / Type</th>
+                            <th>Reporter</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th class="text-end pe-4">Admin Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in reports %}
+                        <tr {% if r.duplicate_count > 1 and r.status != 'Resolved' %}class="table-danger"{% endif %}>
+                            <td class="ps-4 text-muted">#{{ r.id }}</td>
+                            <td>
+                                {% if r.priority == 'High' %}<span class="badge bg-danger me-1">High</span>
+                                {% elif r.priority == 'Medium' %}<span class="badge bg-warning text-dark me-1">Medium</span>
+                                {% else %}<span class="badge bg-secondary me-1">Low</span>{% endif %}
+                                <span class="fw-bold">{{ r.report_type }}</span>
+                            </td>
+                            <td>
+                                {% if r.user_id %}{{ r.user_id }}{% else %}<span class="text-muted fst-italic">Anonymous</span>{% endif %}
+                            </td>
+                            <td>
+                                <div class="text-wrap" style="max-width: 300px; font-size: 0.9rem;">{{ r.description }}</div>
+                                {% if r.image_file %}
+                                    <a href="{{ url_for('static', filename='media/' ~ r.image_file) }}" target="_blank" class="badge bg-info text-decoration-none mt-1"><i class="bi bi-image"></i> View Evidence</a>
+                                {% endif %}
+                                {% if r.item_type and r.item_id %}
+                                    <span class="badge bg-dark mt-1"><i class="bi bi-link"></i> {{ r.item_type }} #{{ r.item_id }}</span>
+                                    {% if r.duplicate_count > 1 %}
+                                        <span class="badge bg-danger ms-1 mt-1" title="Multiple users reported this item!"><i class="bi bi-exclamation-triangle"></i> {{ r.duplicate_count }} Reports</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form action="{{ url_for('update_report_status', id=r.id) }}" method="POST" class="d-inline">
+                                    <select name="status" class="form-select form-select-sm shadow-none" onchange="this.form.submit()" style="width: 120px;">
+                                        <option value="Pending" {% if r.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                        <option value="In Progress" {% if r.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                        <option value="Resolved" {% if r.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                                    </select>
+                                </form>
+                            </td>
+                            <td class="text-end pe-4">
+                                {% if r.admin_response %}
+                                <div class="small text-success mb-2 text-start"><strong>Reply sent:</strong> {{ r.admin_response }}</div>
+                                {% endif %}
+                                {% if r.user_id %}
+                                <form action="{{ url_for('reply_to_report', id=r.id) }}" method="POST" class="mb-2">
+                                    <textarea class="form-control form-control-sm mb-1" name="reply" rows="2" maxlength="2000" required placeholder="Reply to this student..."></textarea>
+                                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-send"></i> Send reply</button>
+                                </form>
+                                {% else %}
+                                <small class="text-muted d-block mb-2">Anonymous report — no reply address.</small>
+                                {% endif %}
+                                <form action="{{ url_for('action_report', id=r.id) }}" method="POST" class="d-inline">
+                                    {% if r.item_type and r.item_id %}
+                                        <button type="submit" name="action" value="delete_post" class="btn btn-sm btn-outline-danger shadow-sm me-1" onclick="return confirm('Are you sure you want to delete the offending {{ r.item_type }}?')">
+                                            <i class="bi bi-trash"></i> Delete Post
+                                        </button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="text-center py-5 text-muted">No reports found matching your criteria.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

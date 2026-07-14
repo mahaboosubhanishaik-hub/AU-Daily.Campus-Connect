@@ -1,0 +1,21 @@
+{
+  "name": "AU Daily - Campus Connect",
+  "short_name": "AU Daily",
+  "description": "Andhra University Campus Connect Platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f7f5",
+  "theme_color": "#12343b",
+  "icons": [
+    {
+      "src": "/static/AUlogo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/static/AUlogo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

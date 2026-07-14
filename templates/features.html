@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold">Platform Features</h1>
+        <p class="lead text-muted">Discover the tools and services that make AU Daily an essential part of campus life.</p>
+    </div>
+
+    <div class="row g-4">
+        <!-- Feature 1: Campus Feed -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 text-center shadow-sm">
+                <div class="card-body">
+                    <div class="feature-icon bg-primary text-white mx-auto mb-3"><i class="fas fa-newspaper"></i></div>
+                    <h5 class="card-title fw-bold">Campus Feed & Events</h5>
+                    <p class="card-text text-muted">Stay updated with the latest news, announcements, and events happening across the university, all in one place.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature 2: Academic Resources -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 text-center shadow-sm">
+                <div class="card-body">
+                    <div class="feature-icon bg-success text-white mx-auto mb-3"><i class="fas fa-book-open"></i></div>
+                    <h5 class="card-title fw-bold">Academic Resources</h5>
+                    <p class="card-text text-muted">Access a shared library of notes, previous papers, and study materials uploaded by peers and faculty.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature 3: Smart Resume Analyzer -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 text-center shadow-sm">
+                <div class="card-body">
+                    <div class="feature-icon bg-info text-white mx-auto mb-3"><i class="fas fa-robot"></i></div>
+                    <h5 class="card-title fw-bold">AI Resume Analyzer</h5>
+                    <p class="card-text text-muted">Get instant feedback on your resume with our AI-powered tool to improve your job application success rate.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .feature-icon {
+        width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+    }
+</style>
+{% endblock %}

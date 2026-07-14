@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+ .admin-sidebar-nav .nav-link{border-radius:10px;color:#496064;padding:.72rem .85rem;font-weight:700}.admin-sidebar-nav .nav-link:hover,.admin-sidebar-nav .nav-link.active{background:#e8f0ff;color:#155eef}.admin-sidebar-nav .nav-link i{width:20px}.admin-hero{background:linear-gradient(120deg,#123b88,#155eef);border-radius:20px;padding:1.65rem;color:#fff;position:relative;overflow:hidden}.admin-hero:after{content:'';position:absolute;width:250px;height:250px;border:1px solid rgba(255,255,255,.2);border-radius:50%;right:-70px;top:-140px}.admin-hero>*{position:relative;z-index:1}.admin-stat{border-radius:16px!important;border:1px solid rgba(21,94,239,.12)!important;box-shadow:0 10px 26px rgba(21,94,239,.08)!important}.admin-stat .card-body{padding:1.35rem}.admin-table-card{border-radius:16px!important;overflow:hidden}.admin-table-card .card-header{background:#fff}.admin-dashboard-title{font-weight:800;letter-spacing:-.02em}
+</style>
+<div class="row g-4">
+    <!-- Admin Sidebar -->
+    <div class="col-lg-3 col-md-4 d-none d-md-block">
+        <div class="card shadow-sm border-0 sticky-top" style="top: 90px;">
+            <div class="card-body p-4">
+                <h6 class="text-uppercase text-muted mb-3">Navigation</h6>
+                <ul class="nav flex-column admin-sidebar-nav">
+                    <li class="nav-item mb-2">
+                        <a class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link {% if request.endpoint == 'add_event' %}active{% endif %}" href="{{ url_for('add_event') }}">
+                            <i class="fas fa-calendar-plus me-2"></i> Add Event
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link {% if request.endpoint == 'view_allowed_students' %}active{% endif %}" href="{{ url_for('view_allowed_students') }}">
+                            <i class="fas fa-user-check me-2"></i> Manage Students
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link {% if request.endpoint == 'admin_feedback' %}active{% endif %}" href="{{ url_for('admin_feedback') }}">
+                            <i class="fas fa-comment-dots me-2"></i> Feedback
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link {% if request.endpoint == 'admin_reports' %}active{% endif %}" href="{{ url_for('admin_reports') }}">
+                            <i class="fas fa-flag me-2"></i> Reports
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link {% if request.endpoint == 'admin_recovery_requests' %}active{% endif %}" href="{{ url_for('admin_recovery_requests') }}">
+                            <i class="fas fa-key me-2"></i> Recovery Requests
+                        </a>
+                    </li>
+                    <li class="nav-item mb-2">
+                        <a class="nav-link {% if request.endpoint == 'admin_profile' %}active{% endif %}" href="{{ url_for('admin_profile') }}">
+                            <i class="fas fa-user-shield me-2"></i> Profile
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="col-lg-9 col-md-8">
+        <section class="admin-hero mb-4"><span class="badge rounded-pill text-bg-light text-primary mb-2">AU DAILY · ADMIN CONSOLE</span><h2 class="admin-dashboard-title mb-1">Campus operations, at a glance.</h2><p class="mb-0 opacity-75">Track students, events, engagement, and university activity from one workspace.</p></section>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <a href="{{ url_for('admin_reports') }}" class="card border-0 shadow-sm text-decoration-none h-100">
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <div><p class="text-muted small mb-1">Open Reports</p><h4 class="mb-0 text-danger">{{ pending_report_count }}</h4></div>
+                        <i class="fas fa-flag text-danger fa-lg"></i>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6">
+                <a href="{{ url_for('admin_notifications') }}" class="card border-0 shadow-sm text-decoration-none h-100">
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <div><p class="text-muted small mb-1">New Feedback</p><h4 class="mb-0 text-primary">{{ unread_feedback_count }}</h4></div>
+                        <i class="fas fa-comment-dots text-primary fa-lg"></i>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100 stat-card admin-stat">
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="text-start">
+                            <p class="metric-label mb-1">Total Students</p>
+                            <h3 class="metric-value mb-0">{{ student_count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                            <i class="fas fa-users fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100 stat-card admin-stat">
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="text-start">
+                            <p class="metric-label mb-1">Total Events</p>
+                            <h3 class="metric-value mb-0">{{ event_count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-success bg-opacity-10 text-success">
+                            <i class="fas fa-calendar-check fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100 stat-card admin-stat">
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="text-start">
+                            <p class="metric-label mb-1">Top Event Likes</p>
+                            <h3 class="metric-value mb-0">{{ top_events[0].likes if top_events else 0 }}</h3>
+                        </div>
+                        <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                            <i class="fas fa-star fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts & Lists -->
+        <div class="row g-4 mb-5">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm h-100 p-3"> {# Added padding here as card-header is bg-transparent #}
+                    <div class="card-header bg-transparent border-0 py-3 px-0"> {# Removed default bg-white from card-header #}
+                        <h5 class="fw-bold mb-0">Events by Department</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="deptChart" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4"> {# Added padding here as card-header is bg-transparent #}
+                <div class="card border-0 shadow-sm h-100 p-3">
+                    <div class="card-header bg-transparent border-0 py-3 px-0">
+                        <h5 class="fw-bold mb-0">Top Liked Events</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for event in top_events %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-4 py-3 border-0">
+                                <div class="d-flex align-items-center">
+                                    <span class="fw-bold text-muted me-3">#{{ loop.index }}</span>
+                                    <span class="text-truncate" style="max-width: 150px;">{{ event.title }}</span>
+                                </div>
+                                <span class="badge bg-danger rounded-pill"><i class="fas fa-heart me-1"></i> {{ event.likes }}</span>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-center text-muted py-4">No data available</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Events Table -->
+        <div class="card border-0 shadow-sm p-3"> {# Added padding here as card-header is bg-transparent #}
+            <div class="card-header bg-transparent border-0 py-3 px-0 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0">All Events</h5>
+                <a href="{{ url_for('add_event') }}" class="btn btn-primary btn-sm rounded-pill px-3"><i class="fas fa-plus me-1"></i> Add Event</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 border-0">Title</th>
+                            <th class="border-0">Department</th>
+                            <th class="border-0">Date</th>
+                            <th class="border-0">Posted By</th>
+                            <th class="text-end pe-4 border-0">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold">{{ event.title }}</div>
+                                <small class="text-muted">{{ event.description[:30] }}...</small>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ event.department }}</span></td>
+                            <td>{{ event.date }}</td>
+                            <td>
+                                {% if event.is_admin %}
+                                    <span class="badge bg-primary">Admin</span>
+                                {% else %}
+                                    <div class="d-flex align-items-center">
+                                        <div class="position-relative d-inline-block me-2">
+                                            <a href="{{ url_for('view_profile', student_id=event.user_id) }}" class="text-decoration-none">
+                                                <i class="fas fa-user-circle text-muted"></i>
+                                            </a>
+                                        </div>
+                                        {{ event.posted_by }}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <a href="{{ url_for('edit_event', event_id=event.id) }}" class="btn btn-light btn-sm text-primary me-1"><i class="fas fa-edit"></i></a>
+                                <a href="{{ url_for('delete_event', id=event.id) }}" class="btn btn-light btn-sm text-danger" onclick="return confirm('Delete this event?')"><i class="fas fa-trash"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Registered Students Table -->
+        <div class="card border-0 shadow-sm mt-5 p-3"> {# Added padding here as card-header is bg-transparent #}
+            <div class="card-header bg-transparent border-0 py-3 px-0 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div>
+                    <h5 class="fw-bold mb-0">Registered Students</h5>
+                    <p class="text-muted small mb-0">Showing last 50 registrations or search results.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <form action="{{ url_for('admin_dashboard') }}" method="GET" class="d-flex">
+                        <div class="input-group">
+                            <input type="text" name="student_q" class="form-control form-control-sm" placeholder="Search students..." value="{{ student_q or '' }}">
+                            <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="fas fa-search"></i></button>
+                        </div>
+                    </form>
+                    <a href="{{ url_for('export_students') }}" class="btn btn-success btn-sm" title="Export All as CSV"><i class="fas fa-file-csv"></i></a>
+                    <a href="{{ url_for('view_allowed_students') }}" class="btn btn-info btn-sm" title="Manage Allowed IDs"><i class="fas fa-list-check"></i></a>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 border-0">Student ID</th>
+                            <th class="border-0">Name</th>
+                            <th class="border-0">Department</th>
+                            <th class="border-0">Graduation Year</th>
+                            <th class="border-0">Email</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td class="ps-4 fw-bold">{{ student.student_id }}</td>
+                            <td>{{ student.name }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ student.department }}</span></td>
+                            <td>{{ student.graduation_year or 'N/A' }}</td>
+                            <td>{{ student.email }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">No students found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Chart.js -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            // Parse data from Jinja2 to JavaScript safely to avoid linter errors
+            const deptLabels = JSON.parse('{{ dept_labels | tojson | safe }}');
+            const deptData = JSON.parse('{{ dept_data | tojson | safe }}');
+
+            const ctx = document.getElementById('deptChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: deptLabels,
+                    datasets: [{
+                        label: 'Number of Events',
+                        data: deptData,
+                        backgroundColor: '#4f46e5',
+                        borderRadius: 4,
+                        barThickness: 30
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        </script>
+    </div>
+</div>
+{% endblock %}

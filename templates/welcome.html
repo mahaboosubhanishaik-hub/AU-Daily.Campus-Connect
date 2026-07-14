@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .public-home {
+        min-height: calc(100vh - 160px);
+        position: relative;
+    }
+
+    .home-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        gap: 44px;
+        align-items: center;
+        padding: 62px 0 46px;
+    }
+
+    .home-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .home-title {
+        margin: 22px 0 14px;
+        color: #0f172a;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-size: clamp(2.6rem, 6vw, 5.4rem);
+        font-weight: 850;
+        line-height: 0.95;
+        letter-spacing: 0;
+    }
+
+    .home-subtitle {
+        color: #155eef;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-size: clamp(1.1rem, 2vw, 1.45rem);
+        font-weight: 750;
+        letter-spacing: 0;
+    }
+
+    .home-copy {
+        max-width: 650px;
+        margin-top: 20px;
+        color: #475569;
+        font-size: 1.05rem;
+        line-height: 1.85;
+    }
+
+    .home-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+    }
+
+    .home-actions .btn {
+        min-height: 46px;
+        border-radius: 8px !important;
+        padding-inline: 20px;
+    }
+
+    .home-showcase {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        background:
+            linear-gradient(#ffffff, #ffffff) padding-box,
+            linear-gradient(135deg, #155eef, #60a5fa, #123b88) border-box;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.14);
+    }
+
+    .showcase-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 18px;
+        background: linear-gradient(135deg, #123b88, #155eef 58%, #60a5fa);
+        color: #ffffff;
+    }
+
+    .showcase-logo {
+        width: 48px;
+        height: 48px;
+        object-fit: cover;
+        border-radius: 8px;
+        background: #ffffff;
+    }
+
+    .showcase-top h3 {
+        margin: 0;
+        color: #ffffff;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-size: 1.05rem;
+        font-weight: 800;
+    }
+
+    .showcase-top p {
+        margin: 2px 0 0;
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 0.82rem;
+    }
+
+    .showcase-body {
+        padding: 22px;
+    }
+
+    .showcase-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .showcase-row:last-child {
+        border-bottom: 0;
+    }
+
+    .showcase-icon {
+        width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #155eef;
+        flex: 0 0 auto;
+    }
+
+    .showcase-row strong {
+        display: block;
+        color: #0f172a;
+        font-size: 0.96rem;
+    }
+
+    .showcase-row span {
+        color: #64748b;
+        font-size: 0.82rem;
+    }
+
+    .home-feature-band {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        padding-bottom: 42px;
+    }
+
+    .home-feature {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 18px;
+        background: #ffffff;
+    }
+
+    .home-feature i {
+        color: #155eef;
+        font-size: 1.35rem;
+        margin-bottom: 12px;
+    }
+
+    .home-feature h3 {
+        margin-bottom: 8px;
+        color: #0f172a;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .home-feature p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.86rem;
+        line-height: 1.65;
+    }
+
+    .home-footer-note {
+        border-top: 1px solid #e2e8f0;
+        padding: 18px 0 8px;
+        color: #64748b;
+        font-size: 0.88rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .home-hero {
+            grid-template-columns: 1fr;
+            padding-top: 34px;
+        }
+
+        .home-feature-band {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .home-feature-band {
+            grid-template-columns: 1fr;
+        }
+
+        .home-actions .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<section class="public-home">
+    <div class="home-hero">
+        <div>
+            <span class="home-kicker"><i class="fas fa-award"></i> Celebrating 100 Years of Excellence</span>
+            <h1 class="home-title">Andhra University</h1>
+            <div class="home-subtitle">Centenary Campus Connect Platform</div>
+            <p class="home-copy">
+                AU Daily is a professional campus communication system for events, academic resources, student discussions, opportunities, and university updates. Built as a modern digital companion for students and administrators.
+            </p>
+            <div class="home-actions">
+                <a href="{{ url_for('student_register') }}" class="btn btn-primary fw-bold">
+                    <i class="fas fa-user-plus me-2"></i>Create Student Account
+                </a>
+                <a href="{{ url_for('student_login') }}" class="btn btn-outline-primary fw-bold">
+                    I Already Have an Account
+                </a>
+                <a href="{{ url_for('admin_login') }}" class="btn btn-outline-dark fw-bold">
+                    Admin Login
+                </a>
+            </div>
+        </div>
+
+        <aside class="home-showcase" aria-label="AU Daily platform preview">
+            <div class="showcase-top">
+                <div class="d-flex align-items-center gap-3">
+                    <img src="{{ url_for('static', filename='AUlogo.jpg') }}" alt="AU Logo" class="showcase-logo">
+                    <div>
+                        <h3>AU Daily</h3>
+                        <p>Campus Connect Dashboard</p>
+                    </div>
+                </div>
+                <i class="fas fa-university fs-4"></i>
+            </div>
+            <div class="showcase-body">
+                <div class="showcase-row">
+                    <span class="showcase-icon"><i class="fas fa-calendar-check"></i></span>
+                    <div>
+                        <strong>Campus Events</strong>
+                        <span>Discover, register, and track university events.</span>
+                    </div>
+                </div>
+                <div class="showcase-row">
+                    <span class="showcase-icon"><i class="fas fa-book-open"></i></span>
+                    <div>
+                        <strong>Academic Resources</strong>
+                        <span>Share notes, papers, and study materials.</span>
+                    </div>
+                </div>
+                <div class="showcase-row">
+                    <span class="showcase-icon"><i class="fas fa-briefcase"></i></span>
+                    <div>
+                        <strong>Career Opportunities</strong>
+                        <span>Post and explore internships, jobs, and programs.</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div class="home-feature-band">
+        <div class="home-feature">
+            <i class="fas fa-newspaper"></i>
+            <h3>Campus News</h3>
+            <p>Centralized updates for student activities and announcements.</p>
+        </div>
+        <div class="home-feature">
+            <i class="fas fa-comments"></i>
+            <h3>Student Doubts</h3>
+            <p>Anonymous academic questions and peer-to-peer discussions.</p>
+        </div>
+        <div class="home-feature">
+            <i class="fas fa-poll"></i>
+            <h3>Polls</h3>
+            <p>Collect student opinions through simple campus polls.</p>
+        </div>
+        <div class="home-feature">
+            <i class="fas fa-chart-line"></i>
+            <h3>Admin Insights</h3>
+            <p>Manage reports, feedback, resources, and platform activity.</p>
+        </div>
+    </div>
+
+    <div class="home-feature-band pt-1">
+        <div class="home-feature">
+            <i class="fas fa-user-plus"></i>
+            <h3>Create your account</h3>
+            <p>Use your approved university registration ID, email address, and mobile number.</p>
+        </div>
+        <div class="home-feature">
+            <i class="fas fa-right-to-bracket"></i>
+            <h3>Sign in securely</h3>
+            <p>Once registered, use your registration ID or email and password to sign in.</p>
+        </div>
+        <div class="home-feature">
+            <i class="fas fa-compass"></i>
+            <h3>Explore campus life</h3>
+            <p>Access events, resources, opportunities, and student community features.</p>
+        </div>
+        <div class="home-feature">
+            <i class="fas fa-shield-alt"></i>
+            <h3>Your privacy matters</h3>
+            <p>Read how AU Daily handles account and platform information.</p>
+        </div>
+    </div>
+
+    <div class="home-footer-note">
+        &copy; {{ now.year if now else 2026 }} Andhra University. AU Daily Campus Connect.
+        <a class="ms-2 text-decoration-none" href="{{ url_for('privacy_policy') }}">Privacy Policy</a>
+    </div>
+</section>
+{% endblock %}

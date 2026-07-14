@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-md-5">
+                    <h1 class="card-title fw-bold text-primary mb-4">Privacy Policy for AU Daily</h1>
+                    
+                    <p class="text-muted">Last updated: July 14, 2026</p>
+
+                    <p>Welcome to AU Daily. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.</p>
+
+                    <h4 class="mt-5">1. Information We Collect</h4>
+                    <p>We may collect personal information that you provide to us directly, such as:</p>
+                    <ul>
+                        <li><strong>Personal Identification Information:</strong> Name, Student ID, email address, phone number, graduation year, and department.</li>
+                        <li><strong>Profile Information:</strong> Profile picture and any other information you add to your profile.</li>
+                        <li><strong>User Content:</strong> Posts, comments, messages, and other content you create on the platform, including events, news posts, and resources.</li>
+                    </ul>
+
+                    <h4 class="mt-4">2. How We Use Your Information</h4>
+                    <p>We use the information we collect to:</p>
+                    <ul>
+                        <li>Create and manage your account.</li>
+                        <li>Provide, operate, and maintain our services.</li>
+                        <li>Improve, personalize, and expand our services.</li>
+                        <li>Communicate with you, including for customer service and to send you updates and notifications.</li>
+                        <li>Process your registrations for events and participation in polls.</li>
+                        <li>Ensure the security of our platform and prevent fraud.</li>
+                    </ul>
+
+                    <h4 class="mt-4">3. Sharing Your Information</h4>
+                    <p>We do not sell your personal information. We may share information with:</p>
+                    <ul>
+                        <li>Other users on the platform as part of the social features (e.g., your name on posts and comments).</li>
+                        <li>University administration for official purposes.</li>
+                        <li>Third-party services only when necessary for the app's functionality (e.g., email providers for sending notifications).</li>
+                    </ul>
+
+                    <h4 class="mt-4">4. Data Security</h4>
+                    <p>We use administrative, technical, and physical security measures to help protect your personal information. While we have taken reasonable steps to secure the personal information you provide to us, please be aware that despite our efforts, no security measures are perfect or impenetrable.</p>
+
+                    <h4 class="mt-4">5. Your Rights</h4>
+                    <p>You have the right to access, update, or delete your personal information through your profile settings. If you have any questions or wish to delete your account entirely, please contact the administration.</p>
+
+                    <h4 class="mt-4">6. Changes to This Policy</h4>
+                    <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.</p>
+
+                    <a href="{{ url_for('home') }}" class="btn btn-primary mt-4">Back to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

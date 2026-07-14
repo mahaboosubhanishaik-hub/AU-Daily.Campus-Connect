@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold mb-0"><i class="fas fa-envelope me-2 text-primary"></i> Messages</h3>
+            </div>
+            
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <div class="list-group list-group-flush">
+                    {% for conv in conversations %}
+                    <a href="{{ url_for('chat', student_id=conv.user.student_id) }}" class="list-group-item list-group-item-action p-3 d-flex align-items-center">
+                        <div class="position-relative d-inline-block me-3">
+                            <img src="{{ url_for('static', filename='media/' + (conv.user.profile_pic or 'default.jpg')) }}" class="rounded-circle border" style="width: 50px; height: 50px; object-fit: cover;">
+                        </div>
+                        <div class="flex-grow-1 min-vw-0">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <h6 class="mb-0 fw-bold text-truncate">{{ conv.user.name }}</h6>
+                                <small class="text-muted text-nowrap ms-2">{{ conv.latest_msg.timestamp | time_ago }}</small>
+                            </div>
+                            <p class="mb-0 small text-muted text-truncate {% if conv.unread_count > 0 %}fw-bold text-dark{% endif %}">
+                                {% if conv.latest_msg.sender_id == session['student'] %}You: {% endif %}
+                                {% if conv.latest_msg.content %}{{ conv.latest_msg.content }}{% else %}<i class="fas fa-image"></i> Image{% endif %}
+                            </p>
+                        </div>
+                        {% if conv.unread_count > 0 %}
+                        <span class="badge bg-danger rounded-pill ms-3">{{ conv.unread_count }}</span>
+                        {% endif %}
+                    </a>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted opacity-25 mb-3"></i>
+                        <h5 class="text-muted">No messages yet</h5>
+                        <p class="text-muted small">Go to a student's profile to start a conversation.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<body style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.55;">
+  <div style="max-width:600px;margin:20px auto;padding:24px;border:1px solid #dbe3f0;border-radius:10px;">
+    <h2 style="margin-top:0;color:#155eef;">AU Daily admin reply</h2>
+    <p>Hello{{ ' ' + name if name else '' }},</p>
+    <p>An administrator replied to your {{ context }}:</p>
+    <div style="white-space:pre-wrap;background:#f4f8ff;border-left:4px solid #155eef;padding:14px;border-radius:4px;">{{ reply }}</div>
+    <p style="color:#6b7280;font-size:12px;margin:24px 0 0;">You can also find this message in your AU Daily notifications.</p>
+  </div>
+</body>
+</html>

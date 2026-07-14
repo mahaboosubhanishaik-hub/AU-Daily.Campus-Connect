@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height:60vh">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-lg border-0 p-3 rounded-4">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width:64px;height:64px">
+                        <i class="fas fa-mobile-screen-button fa-lg"></i>
+                    </div>
+                    <h3 class="fw-bold">Phone Recovery</h3>
+                    <p class="text-muted small">We will send a one-time password to the mobile number registered with your account.</p>
+                </div>
+
+                {% if configured %}
+                    <form method="POST">
+                        <div class="mb-3"><label class="form-label small fw-bold">STUDENT ID</label><input class="form-control bg-light border-0 py-2" name="student_id" required autofocus></div>
+                        <div class="mb-3"><label class="form-label small fw-bold">REGISTERED MOBILE NUMBER</label><input class="form-control bg-light border-0 py-2" name="phone" inputmode="numeric" placeholder="10-digit Indian mobile number" required></div>
+                        <p class="small text-muted">By continuing, you agree to receive a password-recovery OTP by SMS.</p>
+                        <button class="btn btn-primary w-100 rounded-pill py-2">Send OTP</button>
+                    </form>
+                {% else %}
+                    <div class="alert alert-info small">SMS recovery is not enabled. You can use email recovery or ask an administrator to verify your identity and issue a reset link.</div>
+                    <a class="btn btn-primary w-100 rounded-pill py-2" href="{{ url_for('forgot_password') }}">
+                        <i class="fas fa-envelope me-1"></i> Recover by Email
+                    </a>
+                    <a class="btn btn-outline-primary w-100 rounded-pill py-2 mt-2" href="{{ url_for('request_admin_recovery') }}">
+                        <i class="fas fa-user-shield me-1"></i> Request Admin Assistance
+                    </a>
+                {% endif %}
+
+                <div class="text-center mt-3"><a class="small text-muted text-decoration-none" href="{{ url_for('student_login') }}">Back to login</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

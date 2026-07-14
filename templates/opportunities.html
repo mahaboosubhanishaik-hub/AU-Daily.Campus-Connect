@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row align-items-center g-3 mb-4">
+        <div class="col-12 col-sm">
+            <h2 class="fw-bold m-0">Career & Opportunities</h2>
+        </div>
+        <div class="col-12 col-sm-auto">
+            <button class="btn btn-primary rounded-pill px-4 shadow-sm w-100" data-bs-toggle="modal" data-bs-target="#addJobModal">
+                <i class="fas fa-plus me-2"></i> Post Opportunity
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter Categories -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a href="{{ url_for('opportunities') }}" class="btn btn-sm {% if not current_category %}btn-dark{% else %}btn-outline-dark{% endif %} rounded-pill">All</a>
+        {% for cat in categories %}
+            <a href="{{ url_for('opportunities', category=cat) }}" class="btn btn-sm {% if current_category == cat %}btn-dark{% else %}btn-outline-dark{% endif %} rounded-pill">{{ cat }}</a>
+        {% endfor %}
+    </div>
+
+    <!-- Job Feed -->
+    <div class="row g-4">
+        {% for job in jobs %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-10 rounded-pill">{{ job.category }}</span>
+                        {% if session.get('student') == job.user_id or session.get('admin') %}
+                        <a href="{{ url_for('delete_opportunity', job_id=job.id) }}" class="text-danger text-decoration-none" onclick="return confirm('Delete this post?');"><i class="fas fa-trash"></i></a>
+                        {% endif %}
+                    </div>
+                    <h5 class="card-title fw-bold mb-1">{{ job.title }}</h5>
+                    {% if job.company %}
+                    <h6 class="card-subtitle text-muted mb-3"><i class="fas fa-building me-2"></i> {{ job.company }}</h6>
+                    {% endif %}
+                    
+                    <p class="card-text text-secondary small">{{ job.description }}</p>
+                    
+                </div>
+                <div class="card-footer bg-white border-top-0 d-flex justify-content-between align-items-center py-3">
+                    <small class="text-muted d-flex align-items-center">
+                        <div class="position-relative d-inline-block me-2">
+                            <a href="{{ url_for('view_profile', student_id=job.user_id) }}" class="text-decoration-none">
+                                <i class="fas fa-user-circle fs-5 text-secondary"></i> 
+                            </a>
+                        </div>
+                        {{ job.user_name }}
+                    </small>
+                    {% if job.link %}
+                    <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 text-decoration-none">Apply <i class="fas fa-external-link-alt ms-1"></i></a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <div class="text-muted opacity-25 mb-3"><i class="fas fa-briefcase fa-4x"></i></div>
+            <h5>No opportunities posted yet</h5>
+            <p class="text-muted">Be the first to share one!</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Add Job Modal -->
+<div class="modal fade" id="addJobModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light border-0">
+                <h5 class="modal-title fw-bold">Post an Opportunity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_opportunity') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Type of Opportunity *</label>
+                        <select name="category" class="form-select" required>
+                            <option value="" disabled selected>Select a category...</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Title / Role *</label>
+                        <input type="text" name="title" class="form-control" placeholder="e.g., Frontend Developer Intern" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Company / Organization</label>
+                        <input type="text" name="company" class="form-control" placeholder="Optional">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Description</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Key responsibilities, requirements, etc."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Application Link</label>
+                        <input type="url" name="link" class="form-control" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Post</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

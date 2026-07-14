@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="height: 80vh;">
+            <!-- Header -->
+            <div class="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 48px; height: 48px;">
+                        <i class="fas fa-robot fa-lg"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-0">Academic AI Assistant</h5>
+                        <small class="text-muted">Ask me about coding, exams, or campus topics</small>
+                    </div>
+                </div>
+                <a href="{{ url_for('clear_chat_history') }}" class="btn btn-outline-danger btn-sm rounded-pill" onclick="return confirm('Are you sure you want to delete your chat history?')">
+                    <i class="fas fa-trash-alt me-1"></i> Clear Chat
+                </a>
+            </div>
+
+            <!-- Chat Area -->
+            <div class="card-body bg-light p-4 overflow-auto" id="chat-box">
+                <!-- AI Welcome Message -->
+                <div class="d-flex align-items-start mb-3">
+                    <div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm me-2 flex-shrink-0" style="width: 38px; height: 38px;">
+                        <i class="fas fa-robot text-primary"></i>
+                    </div>
+                    <div class="bg-white p-3 rounded-3 shadow-sm" style="max-width: 80%;">
+                        <p class="mb-0">Hello! I'm your AI study buddy. 🎓<br>I can help you with:</p>
+                        <ul class="mb-0 small mt-2 ps-3">
+                            <li>Answering academic questions</li>
+                            <li>Writing and debugging code</li>
+                            <li>Finding campus resources</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="card-footer bg-white p-3 border-top">
+                <form id="chat-form" class="d-flex gap-2">
+                    <input type="text" id="user-input" class="form-control rounded-pill bg-light border-0 py-2 px-3" placeholder="Type your question here..." autocomplete="off" required>
+                    <button type="submit" class="btn btn-primary rounded-circle shadow-sm" style="width: 42px; height: 42px;">
+                        <i class="fas fa-paper-plane small"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Basic styling for code blocks rendered by marked.js */
+    #chat-box pre {
+        background-color: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 1rem;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    [data-theme="dark"] #chat-box pre {
+        background-color: #0d1117;
+        border-color: #30363d;
+        color: #c9d1d9;
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script type="application/json" id="chat-history-data">
+    {{ chat_history | tojson | safe }}
+</script>
+<script>
+    const chatBox = document.getElementById('chat-box');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+
+    function appendMessage(sender, text, isUser) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `d-flex align-items-start mb-3 ${isUser ? 'justify-content-end' : ''}`;
+        
+        let avatar = '';
+        let bubbleClass = '';
+        
+        if (isUser) {
+            avatar = `<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm ms-2 flex-shrink-0" style="width: 38px; height: 38px;"><i class="fas fa-user"></i></div>`;
+            bubbleClass = 'bg-primary text-white';
+        } else {
+            avatar = `<div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm me-2 flex-shrink-0" style="width: 38px; height: 38px;"><i class="fas fa-robot text-primary"></i></div>`;
+            bubbleClass = 'bg-white shadow-sm text-dark';
+        }
+
+        let formattedText;
+        if (isUser) {
+            formattedText = text.replace(/\n/g, '<br>');
+        } else {
+            formattedText = marked.parse(text);
+        }
+        
+        const content = `
+            ${!isUser ? avatar : ''}
+            <div class="${bubbleClass} p-3 rounded-3" style="max-width: 80%;">
+                ${formattedText}
+            </div>
+            ${isUser ? avatar : ''}
+        `;
+        
+        msgDiv.innerHTML = content;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Load existing history from the server
+    const historyElement = document.getElementById('chat-history-data');
+    if (historyElement) {
+        const history = JSON.parse(historyElement.textContent);
+        if (history && history.length > 0) {
+            history.forEach(chat => {
+                appendMessage('You', chat.message, true);
+                appendMessage('AI', chat.response, false);
+            });
+        }
+    }
+
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        // Add User Message
+        appendMessage('You', message, true);
+        userInput.value = '';
+
+        // Show typing indicator
+        const loadingId = 'loading-' + Date.now();
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = loadingId;
+        loadingDiv.className = 'd-flex align-items-center mb-3 text-muted small ms-5';
+        loadingDiv.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i> Thinking...';
+        chatBox.appendChild(loadingDiv);
+
+        // Send to Backend
+        fetch('/get_ai_response', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message: message})
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById(loadingId).remove();
+            appendMessage('AI', data.response, false);
+        });
+    });
+</script>
+{% endblock %}

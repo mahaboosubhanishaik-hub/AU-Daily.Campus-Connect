@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<body style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.55;">
+  <div style="max-width:620px;margin:20px auto;padding:24px;border:1px solid #dbe3f0;border-radius:10px;">
+    <h2 style="margin-top:0;color:#155eef;">{{ title }}</h2>
+    <table style="width:100%;border-collapse:collapse;">
+      {% for label, value in details.items() %}
+      <tr><td style="padding:9px 12px 9px 0;font-weight:bold;vertical-align:top;width:130px;">{{ label }}</td><td style="padding:9px 0;white-space:pre-wrap;word-break:break-word;">{{ value }}</td></tr>
+      {% endfor %}
+    </table>
+    <p style="color:#6b7280;font-size:12px;margin:24px 0 0;">This is an automatic AU Daily notification.</p>
+  </div>
+</body>
+</html>

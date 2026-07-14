@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-header bg-dark text-white p-4 rounded-top-4 text-center">
+                <h3 class="mb-1 fw-bold"><i class="fas fa-rocket text-warning me-2"></i> Smart Placement Assistant</h3>
+                <p class="mb-0 text-light small">Analyze your resume against real job postings using AI.</p>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                
+                <form id="placementForm">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-primary"><i class="fas fa-link me-1"></i> Job Link or Description</label>
+                        <textarea class="form-control bg-light border-0 shadow-sm" id="job_link" name="job_link" rows="3" placeholder="Paste the job link (e.g., TCS/Infosys careers page) OR paste the full job description text here..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-primary"><i class="fas fa-file-pdf me-1"></i> Upload Resume</label>
+                        <div>
+                            <!-- Visually hidden file input -->
+                            <input class="form-control d-none" type="file" id="resume" name="resume" accept=".pdf" required>
+                            <!-- Styled label acting as a button -->
+                            <label for="resume" class="btn btn-outline-secondary">
+                                <i class="fas fa-upload me-2"></i> Choose PDF Resume...
+                            </label>
+                            <span id="resumeFileName" class="ms-2 text-muted">No file selected</span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-warning w-100 rounded-pill py-3 fw-bold shadow-sm" id="analyzeBtn">
+                        <i class="fas fa-magic me-2"></i> Start AI Analysis
+                    </button>
+                </form>
+                
+                <!-- Loading State -->
+                <div id="loadingState" class="text-center mt-5 d-none">
+                    <div class="spinner-border text-warning mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+                    <h5 class="fw-bold text-dark">Analyzing Profile...</h5>
+                    <p class="text-muted">The AI is currently reading your resume, extracting requirements from the job link, and comparing your skills. This usually takes 10-15 seconds.</p>
+                </div>
+                
+                <!-- Result Output -->
+                <div id="resultArea" class="mt-5 d-none">
+                    <h4 class="fw-bold border-bottom pb-3 mb-4 text-success"><i class="fas fa-chart-pie me-2"></i> Analysis Results</h4>
+                    <div id="analysisContent" class="p-4 bg-light rounded-4 border shadow-sm" style="font-size: 1.05rem; line-height: 1.6;"></div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Marked.js to render the Markdown output from Gemini -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.getElementById('placementForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const loadingState = document.getElementById('loadingState');
+    const resultArea = document.getElementById('resultArea');
+    const analysisContent = document.getElementById('analysisContent');
+    const resumeInput = document.getElementById('resume');
+    const resumeFileName = document.getElementById('resumeFileName');
+
+    resumeInput.addEventListener('change', function() {
+        resumeFileName.textContent = this.files.length > 0 ? this.files[0].name : 'No file selected';
+    });
+    
+    // Toggle UI States
+    analyzeBtn.disabled = true;
+    analyzeBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i> Processing...';
+    loadingState.classList.remove('d-none');
+    resultArea.classList.add('d-none');
+    
+    fetch("{{ url_for('analyze_placement') }}", {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '<i class="fas fa-magic me-2"></i> Start AI Analysis';
+        loadingState.classList.add('d-none');
+        
+        if (data.success) {
+            resultArea.classList.remove('d-none');
+                analysisContent.innerHTML = marked.parse(data.analysis.verdict); // Or format the full analysis object
+            // Scroll smoothly to results
+            resultArea.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            alert(data.error || 'An error occurred during analysis.');
+        }
+    })
+    .catch(error => {
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '<i class="fas fa-magic me-2"></i> Start AI Analysis';
+        loadingState.classList.add('d-none');
+        alert('Connection error. Please try again.');
+    });
+});
+</script>
+{% endblock %}

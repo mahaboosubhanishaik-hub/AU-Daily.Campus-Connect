@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Analyzer - AU Daily</title>
+    <script>
+        if (window.location.pathname === '/static/resume_analyzer.html') {
+            window.location.replace('/resume_analyzer');
+        }
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+        .topbar {
+            border-bottom: 1px solid #e2e8f0;
+            background: #ffffff;
+        }
+
+        .brand-logo {
+            width: 34px;
+            height: 34px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
+            gap: 28px;
+            align-items: stretch;
+            padding: 42px 0 28px;
+        }
+
+        .panel {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+        }
+
+        .intro {
+            padding: 32px;
+            color: #ffffff;
+            background: linear-gradient(135deg, #12343b 0%, #0f766e 58%, #c0842d 100%);
+        }
+
+        .intro h1 {
+            color: #ffffff;
+            font-size: clamp(2rem, 4vw, 3.6rem);
+            font-weight: 850;
+            line-height: 1;
+            letter-spacing: 0;
+        }
+
+        .intro p {
+            color: rgba(255, 255, 255, 0.78);
+            line-height: 1.75;
+        }
+
+        .metric {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 24px;
+        }
+
+        .metric div {
+            padding: 14px;
+            border-left: 3px solid #f59e0b;
+            background: rgba(255, 255, 255, 0.11);
+        }
+
+        .metric strong {
+            display: block;
+            color: #ffffff;
+        }
+
+        .metric span {
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 0.78rem;
+        }
+
+        .form-panel {
+            padding: 28px;
+        }
+
+        .form-control {
+            border-radius: 8px;
+        }
+
+        .score-ring {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            margin: 0 auto;
+            background: conic-gradient(#0f766e calc(var(--score) * 1%), #e2e8f0 0);
+        }
+
+        .score-ring-inner {
+            width: 118px;
+            height: 118px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: #ffffff;
+            color: #0f172a;
+            font-size: 2rem;
+            font-weight: 850;
+        }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .check-row:last-child {
+            border-bottom: 0;
+        }
+
+        .skill-chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            margin: 4px 4px 0 0;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #0f766e;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        @media (max-width: 991.98px) {
+            .hero {
+                grid-template-columns: 1fr;
+            }
+
+            .metric {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="topbar py-3">
+        <div class="container d-flex align-items-center justify-content-between gap-3">
+            <a href="/" class="d-flex align-items-center gap-2 text-decoration-none text-primary fw-bold">
+                <img src="/static/AUlogo.jpg" alt="AU Logo" class="brand-logo">
+                <span>AU Daily</span>
+            </a>
+            <a href="/features" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                <i class="fas fa-arrow-left me-1"></i> Features
+            </a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="hero">
+            <section class="panel intro">
+                <span class="badge rounded-pill bg-warning text-dark px-3 py-2 mb-4">
+                    <i class="fas fa-file-alt me-1"></i> Placement Ready Tool
+                </span>
+                <h1>Resume Analyzer</h1>
+                <p class="mt-3 mb-0">
+                    Paste your resume text or upload a TXT resume to get an instant readiness score with practical suggestions for ATS readability, skills, projects, and job-description matching.
+                </p>
+                <div class="metric">
+                    <div>
+                        <strong>ATS</strong>
+                        <span>Formatting checks</span>
+                    </div>
+                    <div>
+                        <strong>Skills</strong>
+                        <span>Keyword coverage</span>
+                    </div>
+                    <div>
+                        <strong>Projects</strong>
+                        <span>Final-year strength</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel form-panel">
+                <h4 class="fw-bold mb-1">Analyze Resume</h4>
+                <p class="text-muted small mb-4">For immediate use, paste resume text below. TXT upload is also supported.</p>
+                <form id="resumeForm">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">UPLOAD TXT RESUME (OPTIONAL)</label>
+                        <input type="file" id="resumeFile" class="form-control" accept=".txt">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">RESUME TEXT *</label>
+                        <textarea id="resumeText" class="form-control" rows="8" placeholder="Paste resume content here..." required></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-muted">TARGET JOB DESCRIPTION (OPTIONAL)</label>
+                        <textarea id="jobDescription" class="form-control" rows="4" placeholder="Paste internship/job description here..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-3">
+                        <i class="fas fa-magic me-2"></i>Analyze Resume
+                    </button>
+                </form>
+            </section>
+        </div>
+
+        <section id="results" class="d-none pb-5">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="panel p-4 text-center h-100">
+                        <div class="score-ring" id="scoreRing" style="--score: 0">
+                            <div class="score-ring-inner" id="scoreValue">0</div>
+                        </div>
+                        <h4 class="fw-bold mt-4 mb-1" id="verdict">Ready</h4>
+                        <p class="text-muted mb-0" id="wordCount">0 readable words detected</p>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <div class="panel p-4 h-100">
+                        <h5 class="fw-bold mb-3">Readiness Checks</h5>
+                        <div id="checks"></div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="panel p-4 h-100">
+                        <h5 class="fw-bold mb-3">Suggestions</h5>
+                        <div id="suggestions"></div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="panel p-4 h-100">
+                        <h5 class="fw-bold mb-3">Detected Skills</h5>
+                        <div id="skills"></div>
+                    </div>
+                </div>
+                <div class="col-12" id="jdSection"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const skillGroups = {
+            Programming: ["python", "java", "javascript", "c", "c++", "sql", "html", "css", "php"],
+            Frameworks: ["flask", "django", "react", "node", "express", "spring", "bootstrap", "tailwind"],
+            Databases: ["mysql", "postgresql", "mongodb", "sqlite", "oracle", "firebase"],
+            Tools: ["git", "github", "docker", "linux", "aws", "postman", "figma", "excel"],
+            "Core CS": ["data structures", "algorithms", "oops", "dbms", "operating system", "computer networks"],
+            "Soft Skills": ["leadership", "communication", "teamwork", "problem solving", "presentation"]
+        };
+
+        const actionVerbs = ["built", "developed", "designed", "implemented", "created", "optimized", "improved", "automated", "integrated", "deployed", "managed", "led", "analyzed", "tested"];
+
+        function hits(text, words) {
+            return words.filter(word => text.includes(word));
+        }
+
+        function addCheck(checks, label, passed, points, tip, suggestions) {
+            checks.push({ label, passed, points: passed ? points : 0 });
+            if (!passed) suggestions.push(tip);
+            return passed ? points : 0;
+        }
+
+        function analyze(resumeText, jdText) {
+            const text = resumeText.replace(/\s+/g, " ").trim();
+            const lower = text.toLowerCase();
+            const words = lower.match(/\b[a-zA-Z][a-zA-Z+#.]*\b/g) || [];
+            let score = 0;
+            const checks = [];
+            const suggestions = [];
+
+            const email = /[\w.+-]+@[\w-]+\.[\w.-]+/.test(text);
+            const phone = /(\+91[\s-]?)?[6-9]\d{9}\b/.test(text);
+            const links = /(linkedin\.com|github\.com|portfolio|hackerrank|leetcode)/.test(lower);
+
+            score += addCheck(checks, "Contact details", email && phone, 10, "Add a professional email and Indian mobile number at the top.", suggestions);
+            score += addCheck(checks, "Profile links", links, 8, "Add LinkedIn, GitHub, portfolio, or coding-profile links.", suggestions);
+
+            const sections = ["education", "skills", "project", "experience", "internship", "certification"];
+            const foundSections = sections.filter(section => lower.includes(section)).length;
+            score += addCheck(checks, "Core resume sections", foundSections >= 4, 14, "Include Education, Skills, Projects, Experience/Internship, and Certifications sections.", suggestions);
+
+            const skillsByGroup = {};
+            let totalSkills = 0;
+            Object.entries(skillGroups).forEach(([group, groupWords]) => {
+                skillsByGroup[group] = hits(lower, groupWords);
+                totalSkills += skillsByGroup[group].length;
+            });
+            score += addCheck(checks, "Technical keyword coverage", totalSkills >= 8, 16, "Add more role-relevant languages, frameworks, databases, tools, and CS fundamentals.", suggestions);
+
+            score += addCheck(checks, "Project visibility", lower.includes("project") && /(application|system|dashboard|portal|website)/.test(lower), 12, "Mention project title, tech stack, your role, and outcome clearly.", suggestions);
+
+            const quantified = (text.match(/(\d+%|\d+\+|\b\d{2,}\b)/g) || []).length;
+            score += addCheck(checks, "Measurable impact", quantified >= 3, 12, "Add numbers like users, accuracy, team size, marks, performance, or time saved.", suggestions);
+
+            const actionHits = hits(lower, actionVerbs);
+            score += addCheck(checks, "Action-oriented writing", actionHits.length >= 5, 10, "Start bullets with action verbs like Built, Developed, Implemented, Optimized, or Deployed.", suggestions);
+
+            const iconHeavy = /[□■●◆★✓✔]/.test(text);
+            score += addCheck(checks, "ATS-friendly formatting", !iconHeavy && words.length >= 180, 10, "Use simple headings, readable text, and avoid icon-heavy formatting.", suggestions);
+
+            score += addCheck(checks, "Resume length", words.length >= 250 && words.length <= 850, 8, "Keep a fresher resume around one page with roughly 250-850 meaningful words.", suggestions);
+
+            let jd = null;
+            if (jdText.trim()) {
+                const stop = new Set(["and", "the", "for", "with", "you", "are", "this", "that", "will", "from", "our", "your"]);
+                const jdWords = [...new Set((jdText.toLowerCase().match(/\b[a-zA-Z][a-zA-Z+#.]{2,}\b/g) || []).filter(word => !stop.has(word)))];
+                const resumeSet = new Set(words);
+                const matched = jdWords.filter(word => resumeSet.has(word));
+                const missing = jdWords.filter(word => !resumeSet.has(word)).slice(0, 12);
+                const matchScore = Math.round((matched.length / Math.max(jdWords.length, 1)) * 100);
+                jd = { score: matchScore, matched: matched.slice(0, 16), missing };
+                if (matchScore >= 35) score += 10;
+                else suggestions.push("Customize the resume using important keywords from the target job description.");
+            }
+
+            score = Math.min(score, 100);
+            const verdict = score >= 80 ? "Strong resume" : score >= 60 ? "Good foundation" : "Needs improvement";
+            return { score, verdict, words: words.length, checks, suggestions, skillsByGroup, jd };
+        }
+
+        function render(result) {
+            document.getElementById("results").classList.remove("d-none");
+            document.getElementById("scoreRing").style.setProperty("--score", result.score);
+            document.getElementById("scoreValue").textContent = result.score;
+            document.getElementById("verdict").textContent = result.verdict;
+            document.getElementById("wordCount").textContent = `${result.words} readable words detected`;
+
+            document.getElementById("checks").innerHTML = result.checks.map(check => `
+                <div class="check-row">
+                    <div>
+                        <strong>${check.label}</strong>
+                        <div class="small text-muted">${check.passed ? "Good" : "Needs work"}</div>
+                    </div>
+                    <span class="badge ${check.passed ? "bg-success" : "bg-warning text-dark"} rounded-pill">${check.passed ? `+${check.points}` : "Improve"}</span>
+                </div>
+            `).join("");
+
+            document.getElementById("suggestions").innerHTML = result.suggestions.length
+                ? result.suggestions.map(item => `<div class="d-flex gap-3 mb-3"><i class="fas fa-arrow-right text-primary mt-1"></i><div class="text-secondary">${item}</div></div>`).join("")
+                : `<p class="text-muted mb-0">Your resume covers the major checks well. Fine-tune it for each job role before applying.</p>`;
+
+            document.getElementById("skills").innerHTML = Object.entries(result.skillsByGroup).map(([group, skills]) => `
+                <div class="mb-3">
+                    <div class="small fw-bold text-muted mb-1">${group}</div>
+                    ${skills.length ? skills.map(skill => `<span class="skill-chip">${skill}</span>`).join("") : `<span class="text-muted small">No strong keywords detected</span>`}
+                </div>
+            `).join("");
+
+            document.getElementById("jdSection").innerHTML = result.jd ? `
+                <div class="panel p-4">
+                    <div class="d-flex flex-wrap justify-content-between gap-3 mb-3">
+                        <div>
+                            <h5 class="fw-bold mb-1">Job Description Match</h5>
+                            <p class="text-muted small mb-0">Use missing keywords naturally only if they are true for your profile.</p>
+                        </div>
+                        <span class="badge bg-primary rounded-pill align-self-start px-3 py-2">${result.jd.score}% Match</span>
+                    </div>
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="small fw-bold text-muted mb-2">MATCHED KEYWORDS</div>
+                            ${result.jd.matched.length ? result.jd.matched.map(word => `<span class="skill-chip">${word}</span>`).join("") : `<p class="text-muted small mb-0">No strong overlap detected.</p>`}
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small fw-bold text-muted mb-2">MISSING KEYWORDS</div>
+                            ${result.jd.missing.length ? result.jd.missing.map(word => `<span class="skill-chip bg-light text-dark">${word}</span>`).join("") : `<p class="text-muted small mb-0">No major missing keywords found.</p>`}
+                        </div>
+                    </div>
+                </div>
+            ` : "";
+
+            document.getElementById("results").scrollIntoView({ behavior: "smooth" });
+        }
+
+        document.getElementById("resumeFile").addEventListener("change", async event => {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (!file.name.toLowerCase().endsWith(".txt")) {
+                alert("Immediate analyzer supports TXT upload. For PDF/DOCX, paste the resume text.");
+                event.target.value = "";
+                return;
+            }
+            document.getElementById("resumeText").value = await file.text();
+        });
+
+        document.getElementById("resumeForm").addEventListener("submit", event => {
+            event.preventDefault();
+            const resumeText = document.getElementById("resumeText").value;
+            const jdText = document.getElementById("jobDescription").value;
+            if (!resumeText.trim()) {
+                alert("Please paste resume text first.");
+                return;
+            }
+            render(analyze(resumeText, jdText));
+        });
+    </script>
+</body>
+</html>

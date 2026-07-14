@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        
+        <!-- Page Header -->
+        <div class="card bg-primary text-white border-0 shadow-sm rounded-4 mb-4 position-relative overflow-hidden" style="background: linear-gradient(135deg, #0d6efd, #0dcaf0) !important;">
+            <!-- Decorative Background Icon -->
+            <div class="position-absolute top-50 end-0 translate-middle-y opacity-10 pe-none me-n4">
+                <i class="fas fa-bullhorn" style="font-size: 180px; transform: rotate(-15deg);"></i>
+            </div>
+            <div class="card-body p-4 p-md-5 d-flex align-items-center position-relative z-1">
+                <div class="bg-white bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center me-4 flex-shrink-0 shadow-sm" style="width: 80px; height: 80px;">
+                    <i class="fas fa-newspaper fa-3x"></i>
+                </div>
+                <div>
+                    <h1 class="fw-bold mb-1 display-6">Campus News Feed</h1>
+                    <p class="mb-0 text-white opacity-75 fs-6">Share updates, announcements, and moments with the community.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Post Card -->
+        <div class="card mb-4 shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-start">
+                    <!-- User Avatar Placeholder -->
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0 shadow-sm" style="width: 48px; height: 48px;">
+                        <i class="fas fa-pen"></i>
+                    </div>
+                    <div class="w-100">
+                        <form action="{{ url_for('add_news_post') }}" method="POST" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <textarea name="content" class="form-control border-0 bg-light rounded-3 p-3" rows="3" placeholder="What's happening on campus?" style="resize: none;" required></textarea>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="input-group w-auto">
+                                    <label class="btn btn-light btn-sm text-muted rounded-pill px-3 border" for="postImage" style="cursor: pointer;">
+                                        <i class="fas fa-image me-1 text-primary"></i> Add Photo/Video
+                                    </label>
+                                    <input type="file" name="image" id="postImage" class="d-none" accept="image/*,video/*" onchange="previewFile()">
+                                </div>
+                                <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Post</button>
+                            </div>
+                            <div id="preview-container" class="mt-3"></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- News Feed -->
+        <div id="news-feed">
+            {% for post in posts %}
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <!-- Post Header -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center">
+                            {% if post.profile_pic %}
+                                <img src="{{ url_for('static', filename='media/' + post.profile_pic) }}" class="avatar-sm me-2 shadow-sm" alt="User">
+                            {% else %}
+                                <div class="avatar-sm bg-secondary text-white d-flex align-items-center justify-content-center me-2 small shadow-sm">
+                                    {{ post.user_name[0] | upper }}
+                                </div>
+                            {% endif %}
+                            <div>
+                                <h6 class="mb-0 fw-bold">{{ post.user_name }} {% if post.is_admin %}<i class="fas fa-check-circle text-primary small ms-1" title="Official"></i>{% endif %}</h6>
+                                <small class="text-muted" style="font-size: 0.75rem;">{{ post.timestamp | time_ago }}</small>
+                            </div>
+                        </div>
+                        {% if (session.get('student') and session.get('student') == post.user_id) or session.get('admin') %}
+                        <div class="dropdown">
+                            <button class="btn btn-link text-muted p-0" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-h"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg">
+                                <li><a class="dropdown-item text-danger" href="{{ url_for('delete_news_post', post_id=post.id) }}" onclick="return confirm('Delete this post?')"><i class="fas fa-trash-alt me-2"></i>Delete Post</a></li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Post Content -->
+                    <p class="card-text mb-3 text-dark">{{ post.content }}</p>
+
+                    <!-- Post Media -->
+                    {% if post.image_file %}
+                        <div class="mb-3 rounded-3 overflow-hidden border bg-light">
+                            {% if post.is_video %}
+                                <video controls class="w-100 d-block" style="max-height: 500px; object-fit: contain;">
+                                    <source src="{{ url_for('static', filename='media/' + post.image_file) }}">
+                                </video>
+                            {% else %}
+                                <img src="{{ url_for('static', filename='media/' + post.image_file) }}" class="w-100 d-block" alt="Post Image" style="max-height: 500px; object-fit: contain;">
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex align-items-center border-top pt-3 mt-3">
+                        <button class="btn btn-light btn-sm rounded-pill me-2 px-3 {{ 'text-danger' if post.user_liked else 'text-muted' }}" onclick="likePost('{{ post.id }}')" id="like-btn-{{ post.id }}">
+                            <i class="{{ 'fas' if post.user_liked else 'far' }} fa-heart me-1"></i> <span id="like-count-{{ post.id }}">{{ post.like_count }}</span>
+                        </button>
+                        <button class="btn btn-light btn-sm rounded-pill px-3 text-muted" type="button" data-bs-toggle="collapse" data-bs-target="#comments-{{ post.id }}">
+                            <i class="far fa-comment me-1"></i> {{ post.comments|length }}
+                        </button>
+                    </div>
+
+                    <!-- Comments Section -->
+                    <div class="collapse mt-3" id="comments-{{ post.id }}">
+                        <div class="bg-light p-3 rounded-3">
+                            <div id="comments-list-{{ post.id }}" class="mb-3" style="max-height: 200px; overflow-y: auto;">
+                                {% for comment in post.comments %}
+                                <div class="d-flex mb-2 align-items-start" id="comment-display-{{ comment.id }}">
+                                    <div class="fw-bold small me-2 text-nowrap">{{ comment.user_name }}:</div>
+                                    <div class="small text-muted flex-grow-1 text-break">{{ comment.content }}</div>
+                                    {% if (session.get('student') and session.get('student') == comment.user_id) or session.get('admin') %}
+                                        <div class="ms-2 text-nowrap">
+                                            <a href="javascript:void(0)" onclick="toggleNewsCommentEdit('{{ comment.id }}')" class="text-primary small me-1" title="Edit"><i class="fas fa-edit"></i></a>
+                                            <a href="{{ url_for('delete_news_comment', comment_id=comment.id) }}" class="text-danger small" onclick="return confirm('Delete this comment?')" title="Delete"><i class="fas fa-times"></i></a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% if (session.get('student') and session.get('student') == comment.user_id) or session.get('admin') %}
+                                <form action="{{ url_for('edit_news_comment', comment_id=comment.id) }}" method="POST" class="d-none mb-2" id="comment-edit-form-{{ comment.id }}">
+                                    <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden">
+                                        <input type="text" name="content" class="form-control border-0 bg-white px-3" value="{{ comment.content }}" required>
+                                        <button type="submit" class="btn btn-primary px-3">Save</button>
+                                        <button type="button" class="btn btn-light px-3" onclick="toggleNewsCommentEdit('{{ comment.id }}')">Cancel</button>
+                                    </div>
+                                </form>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                            <form onsubmit="postNewsComment(event, '{{ post.id }}')" class="d-flex">
+                                <input type="text" name="content" class="form-control form-control-sm rounded-pill me-2 border-0 shadow-sm" placeholder="Write a comment..." required>
+                                <button type="submit" class="btn btn-primary btn-sm rounded-circle shadow-sm" style="width: 32px; height: 32px;"><i class="fas fa-paper-plane small"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <div class="text-muted opacity-25 mb-3"><i class="far fa-newspaper fa-4x"></i></div>
+                <h5>No news yet</h5>
+                <p class="text-muted">Be the first to post something!</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+        <nav aria-label="Page navigation" class="my-5">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link border-0 rounded-circle mx-1 shadow-sm d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;" href="{{ url_for('campus_news', page=pagination.prev_num) }}" aria-label="Previous">
+                        <i class="fas fa-chevron-left small"></i>
+                    </a>
+                </li>
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link border-0 rounded-circle mx-1 shadow-sm d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;" href="{{ url_for('campus_news', page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link border-0 bg-transparent">...</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link border-0 rounded-circle mx-1 shadow-sm d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;" href="{{ url_for('campus_news', page=pagination.next_num) }}" aria-label="Next">
+                        <i class="fas fa-chevron-right small"></i>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+    </div>
+</div>
+
+<!-- JavaScript for Interactivity -->
+<script src="{{ url_for('static', filename='js/news.js') }}"></script>
+<script>
+    // Inline JS for preview and AJAX logic (or move to static/js/news.js)
+    function previewFile() {
+        const preview = document.getElementById('preview-container');
+        const file = document.querySelector('input[type=file]').files[0];
+        const reader = new FileReader();
+
+        reader.onloadend = function () {
+            const type = file.type.split('/')[0];
+            let content = '';
+            if(type === 'image') {
+                content = '<img src="' + reader.result + '" class="img-fluid rounded-3 shadow-sm" style="max-height: 200px;">';
+            } else if (type === 'video') {
+                content = '<video src="' + reader.result + '" controls class="img-fluid rounded-3 shadow-sm" style="max-height: 200px;"></video>';
+            }
+            preview.innerHTML = content;
+        }
+
+        if (file) {
+            reader.readAsDataURL(file);
+        } else {
+            preview.innerHTML = "";
+        }
+    }
+
+    function likePost(postId) {
+        fetch('/like_news/' + postId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const btn = document.getElementById('like-btn-' + postId);
+                    const count = document.getElementById('like-count-' + postId);
+                    const icon = btn.querySelector('i');
+                    
+                    count.innerText = data.likes;
+                    if (data.liked) {
+                        btn.classList.remove('text-muted');
+                        btn.classList.add('text-danger');
+                        icon.classList.remove('far');
+                        icon.classList.add('fas');
+                    } else {
+                        btn.classList.add('text-muted');
+                        btn.classList.remove('text-danger');
+                        icon.classList.add('far');
+                        icon.classList.remove('fas');
+                    }
+                }
+            });
+    }
+
+    function postNewsComment(e, postId) {
+        e.preventDefault();
+        const form = e.target;
+        const input = form.querySelector('input[name="content"]');
+        const content = input.value;
+        
+        const formData = new FormData();
+        formData.append('content', content);
+
+        fetch('/comment_news/' + postId, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const list = document.getElementById('comments-list-' + postId);
+                const newComment = `
+                    <div class="d-flex mb-2 align-items-start" id="comment-display-${data.comment_id}">
+                        <div class="fw-bold small me-2 text-nowrap">${data.user_name}:</div>
+                        <div class="small text-muted flex-grow-1 text-break">${data.content}</div>
+                        <div class="ms-2 text-nowrap">
+                            <a href="javascript:void(0)" onclick="toggleNewsCommentEdit('${data.comment_id}')" class="text-primary small me-1" title="Edit"><i class="fas fa-edit"></i></a>
+                            <a href="/delete_news_comment/${data.comment_id}" class="text-danger small" onclick="return confirm('Delete this comment?')" title="Delete"><i class="fas fa-times"></i></a>
+                        </div>
+                    </div>
+                    <form action="/edit_news_comment/${data.comment_id}" method="POST" class="d-none mb-2" id="comment-edit-form-${data.comment_id}">
+                        <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden">
+                            <input type="text" name="content" class="form-control border-0 bg-white px-3" value="${data.content}" required>
+                            <button type="submit" class="btn btn-primary px-3">Save</button>
+                            <button type="button" class="btn btn-light px-3" onclick="toggleNewsCommentEdit('${data.comment_id}')">Cancel</button>
+                        </div>
+                    </form>`;
+                list.insertAdjacentHTML('beforeend', newComment);
+                input.value = '';
+                list.scrollTop = list.scrollHeight;
+            }
+        });
+    }
+    
+    function toggleNewsCommentEdit(commentId) {
+        const display = document.getElementById('comment-display-' + commentId);
+        const form = document.getElementById('comment-edit-form-' + commentId);
+        
+        display.classList.toggle('d-none');
+        form.classList.toggle('d-none');
+        if (!form.classList.contains('d-none')) {
+            form.querySelector('input').focus();
+        }
+    }
+</script>
+{% endblock %}

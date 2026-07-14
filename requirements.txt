@@ -1,0 +1,11 @@
+Flask==3.1.3
+Flask-Mail==0.10.0
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+SQLAlchemy==2.0.49
+Werkzeug==3.1.8
+python-dotenv==1.2.2
+google-genai==1.72.0
+PyMySQL==1.1.2
+PyPDF2==3.0.1
+gunicorn==25.3.0

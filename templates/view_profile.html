@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .profile-shell { max-width: 1100px; }
+    .profile-hero { background: linear-gradient(125deg, #123b88 0%, #155eef 56%, #60a5fa 150%); border-radius: 24px; overflow: hidden; color: white; position: relative; }
+    .profile-hero::after { content: ''; position: absolute; width: 360px; height: 360px; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; right: -110px; top: -180px; box-shadow: 0 0 0 48px rgba(255,255,255,.05), 0 0 0 96px rgba(255,255,255,.04); }
+    .profile-hero-content { position: relative; z-index: 1; padding: 2rem; }
+    .profile-avatar { width: 132px; height: 132px; object-fit: cover; border: 5px solid rgba(255,255,255,.9); box-shadow: 0 14px 32px rgba(0,0,0,.24); }
+    .profile-stat { min-width: 96px; padding: .75rem 1rem; border-left: 1px solid rgba(255,255,255,.24); color: white; }
+    .profile-stat:first-child { border-left: 0; }
+    .profile-stat strong { display: block; font-size: 1.25rem; }
+    .profile-panel { border-radius: 18px; }
+    .profile-tab { border: 0; background: transparent; color: #607d7f; padding: .8rem 1.1rem; font-weight: 700; border-bottom: 3px solid transparent; }
+    .profile-tab.active { color: #155eef; border-color: #60a5fa; }
+    .content-card { border: 1px solid rgba(23,37,42,.09); border-radius: 16px; box-shadow: none; }
+    @media (max-width: 576px) { .profile-hero-content { padding: 1.5rem; } .profile-avatar { width: 105px; height: 105px; } .profile-stat { padding: .65rem .75rem; min-width: auto; } }
+</style>
+
+<div class="container profile-shell py-4">
+    <section class="profile-hero shadow-sm mb-4">
+        <div class="profile-hero-content">
+            <div class="d-flex flex-column flex-md-row gap-4 align-items-md-center">
+                <div class="position-relative align-self-start">
+                    <img src="{{ url_for('static', filename='media/' + (student.profile_pic or 'default.jpg')) }}" class="profile-avatar rounded-circle bg-white" alt="{{ student.name }} profile picture">
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <h1 class="h2 fw-bold mb-0">{{ student.name }}</h1>
+                        {% if student.is_admin_profile %}<span class="badge text-bg-light text-danger rounded-pill"><i class="fas fa-circle-check me-1"></i>Official</span>{% endif %}
+                    </div>
+                    <p class="mb-3 opacity-75"><i class="fas fa-id-card me-2"></i>{{ student.student_id }}</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge rounded-pill text-bg-light px-3 py-2 text-dark">{{ student.department }}</span>
+                        <span class="badge rounded-pill border border-light px-3 py-2">{{ student.graduation_year }}</span>
+                    </div>
+                </div>
+                <div class="align-self-md-start">
+                    {% if student.student_id == current_user_id %}
+                    <a href="{{ url_for('student_settings') }}" class="btn btn-light rounded-pill px-4"><i class="fas fa-sliders me-2"></i>Edit profile</a>
+                    {% elif session.get('student') and not student.is_admin_profile %}
+                    <a href="{{ url_for('follow_user', student_id=student.student_id) }}" class="btn btn-light rounded-pill px-4">{% if is_following %}<i class="fas fa-check me-1"></i>Following{% else %}<i class="fas fa-user-plus me-1"></i>Follow{% endif %}</a>
+                    <a href="{{ url_for('chat', student_id=student.student_id) }}" class="btn btn-outline-light rounded-pill px-4 ms-1"><i class="fas fa-message"></i></a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="d-flex mt-4 pt-3 border-top border-white border-opacity-25">
+                <a href="{{ url_for('followers_list', student_id=student.student_id, list_type='followers') }}" class="profile-stat text-decoration-none"><strong>{{ follower_count }}</strong><span class="small opacity-75">Followers</span></a>
+                <a href="{{ url_for('followers_list', student_id=student.student_id, list_type='following') }}" class="profile-stat text-decoration-none"><strong>{{ following_count }}</strong><span class="small opacity-75">Following</span></a>
+                <div class="profile-stat"><strong>{{ news_posts|length }}</strong><span class="small opacity-75">Posts</span></div>
+                <div class="profile-stat"><strong>{{ events|length }}</strong><span class="small opacity-75">Events</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card profile-panel border-0 mb-4">
+        <div class="card-body p-2">
+            <ul class="nav" id="profile-tabs" role="tablist">
+                <li class="nav-item"><button class="profile-tab active" data-bs-toggle="tab" data-bs-target="#posts" type="button"><i class="fas fa-note-sticky me-2"></i>Campus posts</button></li>
+                <li class="nav-item"><button class="profile-tab" data-bs-toggle="tab" data-bs-target="#events" type="button"><i class="fas fa-calendar-day me-2"></i>Events</button></li>
+            </ul>
+        </div>
+    </section>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="posts">
+            <div class="row g-3">
+                {% for post in news_posts %}
+                <div class="col-md-6"><article class="card content-card h-100"><div class="card-body p-4"><div class="d-flex justify-content-between mb-3"><span class="badge text-bg-light rounded-pill">Campus update</span><small class="text-muted">{{ post.timestamp | time_ago }}</small></div><p class="mb-3">{{ post.content }}</p>{% if post.image_file %}<img src="{{ url_for('static', filename='media/' + post.image_file) }}" class="img-fluid rounded-3 w-100" alt="Post image">{% endif %}</div></article></div>
+                {% else %}
+                <div class="col-12"><div class="card content-card"><div class="card-body text-center py-5 text-muted"><i class="fas fa-pen-to-square fa-2x mb-3"></i><p class="mb-0">No campus posts published yet.</p></div></div></div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="tab-pane fade" id="events">
+            <div class="row g-3">
+                {% for event in events %}
+                <div class="col-md-6"><article class="card content-card h-100"><div class="card-body p-4"><span class="badge bg-primary bg-opacity-10 text-primary rounded-pill mb-3"><i class="fas fa-calendar me-1"></i>{{ event.date }}</span><h5 class="fw-bold">{{ event.title }}</h5><p class="text-muted mb-0">{{ event.description[:150] }}{% if event.description|length > 150 %}...{% endif %}</p>{% if student.student_id == current_user_id %}<div class="mt-3"><a href="{{ url_for('edit_event', event_id=event.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill">Edit</a><a href="{{ url_for('delete_event', id=event.id) }}" class="btn btn-sm btn-outline-danger rounded-pill" onclick="return confirm('Are you sure?')">Delete</a></div>{% endif %}</div></article></div>
+                {% else %}
+                <div class="col-12"><div class="card content-card"><div class="card-body text-center py-5 text-muted"><i class="fas fa-calendar-xmark fa-2x mb-3"></i><p class="mb-0">No events posted yet.</p></div></div></div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

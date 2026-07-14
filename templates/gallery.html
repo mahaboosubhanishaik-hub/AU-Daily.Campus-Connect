@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="text-center mb-5">
+        <h1 class="fw-bold display-6">Campus Gallery</h1>
+        <p class="text-muted">A collection of memories from Events and Campus News.</p>
+    </div>
+    
+    <div class="row g-4">
+        {% for img in images %}
+        <div class="col-sm-6 col-lg-4">
+            <div class="card border-0 shadow-sm h-100 transition-all hover-shadow">
+                <!-- Image Thumbnail -->
+                <div class="overflow-hidden rounded-top" style="height: 250px; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#imgModal{{ loop.index }}">
+                    {% if img.media_type == 'video' %}
+                        <div class="position-relative w-100 h-100 bg-black d-flex align-items-center justify-content-center">
+                            <!-- Use #t=1.0 to grab a frame at 1 second for thumbnail -->
+                            <video src="{{ url_for('static', filename='media/' + img.src) }}#t=1.0" class="w-100 h-100" style="object-fit: cover; opacity: 0.7;"></video>
+                            <div class="position-absolute text-white">
+                                <i class="fas fa-play-circle fa-3x shadow-sm"></i>
+                            </div>
+                        </div>
+                    {% else %}
+                        <img src="{{ url_for('static', filename='media/' + img.src) }}" class="w-100 h-100" alt="Gallery Image" style="object-fit: cover; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    {% endif %}
+                </div>
+                
+                <!-- Caption & User Info -->
+                <div class="card-body p-3 bg-white rounded-bottom">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge {% if img.type == 'Event' %}bg-primary{% else %}bg-info text-dark{% endif %} bg-opacity-10 text-primary border border-primary border-opacity-10 rounded-pill" style="font-size: 0.7rem;">{{ img.type }}</span>
+                        <small class="text-muted" style="font-size: 0.75rem;">{{ img.date }}</small>
+                    </div>
+                    <p class="card-text text-truncate small text-dark mb-2 fw-medium">{{ img.caption }}</p>
+                    <div class="d-flex align-items-center pt-2 border-top">
+                        <div class="position-relative d-inline-block me-2">
+                            <a href="{{ url_for('view_profile', student_id=img.user_id) }}" class="text-decoration-none">
+                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center text-secondary fw-bold shadow-sm" style="width: 24px; height: 24px; font-size: 10px;">
+                                    {{ img.user[0] | upper }}
+                                </div>
+                            </a>
+                        </div>
+                        <small class="text-muted">Posted by <span class="text-dark fw-bold">{{ img.user }}</span></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <div class="text-muted opacity-25 mb-3"><i class="far fa-images fa-4x"></i></div>
+            <h5>No photos found</h5>
+            <p class="text-muted">Photos posted in Events and News will automatically appear here.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    // Script to stop video playback when the modal is closed
+    document.addEventListener('DOMContentLoaded', function() {
+        var modals = document.querySelectorAll('.modal');
+        modals.forEach(function(modal) {
+            modal.addEventListener('hidden.bs.modal', function() {
+                var video = modal.querySelector('video');
+                if (video) {
+                    video.pause();
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
+
+{% block modals %}
+{% for img in images %}
+<!-- Full Screen Modal -->
+<div class="modal fade" id="imgModal{{ loop.index }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-body p-0 text-center position-relative">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3 bg-white p-2 rounded-circle" data-bs-dismiss="modal" aria-label="Close"></button>
+                
+                {% if img.media_type == 'video' %}
+                    <video controls class="img-fluid rounded shadow-lg w-100" style="max-height: 85vh;" autoplay>
+                        <source src="{{ url_for('static', filename='media/' + img.src) }}">
+                        Your browser does not support the video tag.
+                    </video>
+                {% else %}
+                    <img src="{{ url_for('static', filename='media/' + img.src) }}" class="img-fluid rounded shadow-lg" style="max-height: 85vh;">
+                {% endif %}
+
+                <div class="mt-2 d-flex justify-content-center align-items-center gap-2">
+                     <span class="badge bg-dark">{{ img.user }}</span>
+                     <a href="{{ url_for('static', filename='media/' + img.src) }}" download class="btn btn-sm btn-light rounded-pill fw-bold"><i class="fas fa-download me-1"></i> Download</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

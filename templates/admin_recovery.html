@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height:60vh">
+  <div class="col-md-6 col-lg-5">
+    <div class="card shadow-lg border-0 p-3 rounded-4">
+      <div class="card-body">
+        <div class="text-center mb-4">
+          <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width:64px;height:64px"><i class="fas fa-user-shield fa-lg"></i></div>
+          <h3 class="fw-bold">Administrator Recovery</h3>
+          <p class="text-muted small">Submit a request, then contact your university administrator through an official channel to verify your identity.</p>
+        </div>
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">STUDENT ID</label>
+            <input class="form-control bg-light border-0 py-2" name="student_id" required autofocus>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">CONTACT NOTE <span class="text-muted fw-normal">(optional)</span></label>
+            <input class="form-control bg-light border-0 py-2" name="contact_note" maxlength="255" placeholder="e.g. Department office, in-person visit">
+          </div>
+          <div class="alert alert-warning small">Do not enter passwords, ID documents, or other sensitive information here. The administrator must verify your identity separately.</div>
+          <button class="btn btn-primary w-100 rounded-pill py-2">Send Request</button>
+        </form>
+        <div class="text-center mt-3"><a class="small text-muted text-decoration-none" href="{{ url_for('student_login') }}">Back to login</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

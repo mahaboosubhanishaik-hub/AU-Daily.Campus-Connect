@@ -1,0 +1,130 @@
+/* static/css/dark_mode.css */
+
+:root {
+    --bg-color: #f8f9fa;
+    --text-color: #212529;
+    --card-bg: #ffffff;
+    --card-border: rgba(0, 0, 0, 0.125);
+    --input-bg: #fff;
+    --input-border: #ced4da;
+    --muted-text: #6c757d;
+    --navbar-bg: rgba(255, 255, 255, 0.9);
+    --modal-bg: #fff;
+    --list-group-bg: #fff;
+    --list-group-border: rgba(0,0,0,.125);
+}
+
+html.dark-mode {
+    --bg-color: #0f172a;
+    --text-color: #f8fafc;
+    --card-bg: #1e293b;
+    --card-border: rgba(255, 255, 255, 0.05);
+    --input-bg: #0f172a;
+    --input-border: #334155;
+    --muted-text: #94a3b8;
+    --navbar-bg: rgba(15, 23, 42, 0.85);
+    --modal-bg: #1e293b;
+    --list-group-bg: #1e293b;
+    --list-group-border: rgba(255, 255, 255, 0.05);
+}
+
+/* Add smooth transitions for color themes */
+body, .card, .navbar, .modal-content, .form-control, .list-group-item, .dropdown-menu {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.card, .modal-content {
+    background-color: var(--card-bg);
+    border-color: var(--card-border);
+    color: var(--text-color);
+}
+
+.card-header, .card-footer, .modal-header, .modal-footer {
+    background-color: rgba(0,0,0,0.03); /* Keep it subtle */
+    border-color: var(--card-border);
+}
+
+html.dark-mode .card-header, 
+html.dark-mode .card-footer,
+html.dark-mode .modal-header,
+html.dark-mode .modal-footer {
+    background-color: rgba(255,255,255,0.05);
+}
+
+.form-control, .form-select {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-color);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+.form-control::placeholder { color: var(--muted-text); }
+.text-muted { color: var(--muted-text) !important; }
+
+.navbar {
+    background-color: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+}
+
+html.dark-mode .navbar-light .navbar-nav .nav-link { color: rgba(255,255,255,.75); }
+html.dark-mode .navbar-light .navbar-nav .nav-link:hover { color: #fff; }
+html.dark-mode .navbar-light .navbar-brand { color: #3b82f6; }
+
+/* Modern Floating Mobile Nav Dark Mode Overrides */
+html.dark-mode .mobile-bottom-nav {
+    background: rgba(15, 23, 42, 0.85);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+html.dark-mode .mobile-fab {
+    border-color: #1e1e1e;
+}
+
+.list-group-item {
+    background-color: var(--list-group-bg);
+    border-color: var(--list-group-border);
+    color: var(--text-color);
+}
+
+html.dark-mode .dropdown-menu {
+    background-color: var(--card-bg);
+    border-color: var(--card-border);
+}
+
+html.dark-mode .dropdown-item { color: #f1f1f1; }
+html.dark-mode .dropdown-item:hover { background-color: rgba(255,255,255,0.1); }
+html.dark-mode .dropdown-divider { border-top-color: rgba(255,255,255,0.05); }
+html.dark-mode .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+
+/* Specific overrides for better look */
+html.dark-mode .bg-light { background-color: #1e293b !important; }
+html.dark-mode .text-dark { color: #f8fafc !important; }
+html.dark-mode .bg-white { background-color: var(--card-bg) !important; }
+
+/* Admin Dashboard Dark Mode Enhancements */
+html.dark-mode .stat-card {
+    background: #1e293b;
+    border-color: #3b82f6;
+}
+html.dark-mode .stat-icon {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+html.dark-mode .metric-label {
+    color: #94a3b8;
+}
+html.dark-mode .metric-value {
+    color: #f8fafc;
+}

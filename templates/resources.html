@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">📚 Academic Resources Hub</h2>
+            <p class="text-muted">Access notes, question papers, and study materials shared by peers.</p>
+        </div>
+        <button class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#uploadResourceModal">
+            <i class="fas fa-upload me-1"></i> Upload Resource
+        </button>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="card mb-5 border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-body bg-light p-4">
+            <form action="{{ url_for('resources') }}" method="GET" class="row g-3 align-items-end">
+                <div class="col-12 mb-2">
+                    <label for="searchQuery" class="form-label small fw-bold text-muted">SEARCH BY TITLE</label>
+                    <div class="input-group shadow-sm rounded-pill overflow-hidden bg-white">
+                        <span class="input-group-text border-0 bg-white ps-3"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" id="searchQuery" name="q" class="form-control border-0 py-2" placeholder="Search for notes or papers..." value="{{ request.args.get('q', '') }}">
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <label for="filterDept" class="form-label small fw-bold text-muted">DEPARTMENT</label>
+                    <select id="filterDept" name="department" class="form-select border-0 shadow-sm">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept }}" {% if request.args.get('department') == dept %}selected{% endif %}>{{ dept }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label for="filterYear" class="form-label small fw-bold text-muted">ACADEMIC YEAR</label>
+                    <select id="filterYear" name="year" class="form-select border-0 shadow-sm">
+                        <option value="">All Years</option>
+                        <option value="1st Year" {% if request.args.get('year') == '1st Year' %}selected{% endif %}>1st Year</option>
+                        <option value="2nd Year" {% if request.args.get('year') == '2nd Year' %}selected{% endif %}>2nd Year</option>
+                        <option value="3rd Year" {% if request.args.get('year') == '3rd Year' %}selected{% endif %}>3rd Year</option>
+                        <option value="4th Year" {% if request.args.get('year') == '4th Year' %}selected{% endif %}>4th Year</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill">Apply Filters</button>
+                </div>
+                <div class="col-12 text-center mt-2">
+                    <a href="{{ url_for('resources', my_department='true') }}" class="btn btn-sm btn-outline-primary rounded-pill">Filter by My Department</a>
+                </div>
+            </form> <!-- This closing tag was missing, causing the modal form to be nested and fail. -->
+        </div>
+    </div>
+
+    <!-- Resources List -->
+    <div class="row g-4">
+        {% for resource in resources %}
+        <div class="col-md-6 col-lg-4 resource-card-item">
+            <div class="card h-100 border-0 shadow-sm hover-card transition-all rounded-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3">{{ resource.department }}</span>
+                        <div class="d-flex gap-2">
+                            {% if session.get('student') %}
+                            <a href="{{ url_for('toggle_save_resource', resource_id=resource.id) }}" class="text-warning" title="Save Resource">
+                                {% if resource.id in saved_resource_ids %}
+                                    <i class="fas fa-bookmark"></i>
+                                {% else %}
+                                    <i class="far fa-bookmark"></i>
+                                {% endif %}
+                            </a>
+                            {% endif %}
+                            {% if resource.user_id == session.get('student') or session.get('admin') %}
+                            <a href="{{ url_for('delete_resource', resource_id=resource.id) }}" class="text-danger" onclick="return confirm('Are you sure you want to delete this resource?');" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <h5 class="fw-bold mb-1">
+                        <a href="{{ url_for('view_resource', resource_id=resource.id) }}" class="text-decoration-none text-dark">{{ resource.title }}</a>
+                    </h5>
+                    <p class="text-muted small mb-3"><i class="fas fa-book-open me-1"></i> {{ resource.subject }} • {{ resource.year }}</p>
+                    
+                    <div class="d-flex align-items-center mb-0 mt-4 pt-3 border-top">
+                        <div class="avatar-xs rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; font-size: 11px; font-weight: bold;">
+                            {{ (resource.user_name[0]|upper) if resource.user_name else '?' }}
+                        </div>
+                        <div class="small">
+                            <a href="{{ url_for('view_profile', student_id=resource.user_id) }}" class="text-decoration-none text-dark fw-bold">{{ resource.user_name }}</a>
+                            <div class="text-muted" style="font-size: 0.75rem;">{{ resource.timestamp | display_time if resource.timestamp else 'Recent' }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 p-4 pt-0 d-flex gap-2">
+                    <a href="{{ url_for('view_resource', resource_id=resource.id) }}" class="btn btn-outline-primary btn-sm flex-grow-1 rounded-pill">
+                        <i class="fas fa-eye me-1"></i> Details
+                    </a>
+                    <a href="{{ url_for('download_resource_file', resource_id=resource.id, download=1) }}" class="btn btn-primary btn-sm flex-grow-1 rounded-pill">
+                        <i class="fas fa-download me-1"></i> Download
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center text-muted py-5 bg-white rounded-4 shadow-sm">
+            <i class="fas fa-folder-open fa-4x mb-3 text-secondary opacity-10"></i>
+            <h5>No matching resources found</h5>
+            <p>Try adjusting your filters or search terms.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination and pagination.pages > 1 %}
+    <nav aria-label="Page navigation" class="mt-5">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('resources', page=pagination.prev_num, q=request.args.get('q'), department=request.args.get('department'), year=request.args.get('year')) }}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}"><a class="page-link" href="{{ url_for('resources', page=page_num, q=request.args.get('q'), department=request.args.get('department'), year=request.args.get('year')) }}">{{ page_num }}</a></li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('resources', page=pagination.next_num, q=request.args.get('q'), department=request.args.get('department'), year=request.args.get('year')) }}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Upload Resource Modal -->
+<div class="modal fade" id="uploadResourceModal" tabindex="-1" aria-labelledby="uploadResourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <!-- Fixed explicitly targeted form context wrapper -->
+            <form action="{{ url_for('add_resource') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-header border-0 pt-4 px-4">
+                    <h5 class="modal-title fw-bold" id="uploadResourceModalLabel">
+                        <i class="fas fa-cloud-upload-alt text-primary me-2"></i> Upload Resource
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="uploadTitle" class="form-label small fw-bold text-muted">TITLE / TOPIC *</label>
+                        <input type="text" id="uploadTitle" name="title" class="form-control bg-light border-0" required placeholder="e.g., Chapter 1 Notes">
+                    </div>
+                    <div class="mb-3">
+                        <label for="uploadSubject" class="form-label small fw-bold text-muted">SUBJECT *</label>
+                        <input type="text" id="uploadSubject" name="subject" class="form-control bg-light border-0" required placeholder="e.g., Data Structures">
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="uploadDept" class="form-label small fw-bold text-muted">DEPARTMENT *</label>
+                            <select id="uploadDept" name="department" class="form-select bg-light border-0" required>
+                                <option value="" disabled selected>Select Department</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept }}">{{ dept }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="uploadYear" class="form-label small fw-bold text-muted">YEAR *</label>
+                            <select id="uploadYear" name="year" class="form-select bg-light border-0" required>
+                                <option value="" disabled selected>Select Year</option>
+                                <option value="1st Year">1st Year</option>
+                                <option value="2nd Year">2nd Year</option>
+                                <option value="3rd Year">3rd Year</option>
+                                <option value="4th Year">4th Year</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="resourceFile" class="form-label small fw-bold text-muted">FILE *</label>
+                        <input type="file" id="resourceFile" name="file" class="form-control bg-light border-0" required accept=".pdf,.doc,.docx,.ppt,.pptx,.txt">
+                        <div class="form-text small text-muted">Allowed formats: PDF, DOC, DOCX, PPT, PPTX, TXT</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Upload Resource</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

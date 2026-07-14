@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold"><i class="fas fa-users me-2 text-primary"></i>Study Groups</h2>
+            <p class="text-muted">Find peers to study with and ace your exams.</p>
+        </div>
+        <button class="btn btn-primary shadow-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+            <i class="fas fa-plus me-2"></i>Create Group
+        </button>
+    </div>
+
+    <div class="row g-4">
+        {% for group in groups %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm hover-shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-primary bg-opacity-10 text-primary">{{ group.subject }}</span>
+                        {% if session.get('admin') or group.created_by == session.get('student') %}
+                            <a href="{{ url_for('delete_study_group', group_id=group.id) }}" class="text-danger small" onclick="return confirm('Delete this group?')"><i class="fas fa-trash"></i></a>
+                        {% endif %}
+                    </div>
+                    <h5 class="card-title fw-bold mb-1">{{ group.topic }}</h5>
+                    <div class="d-flex align-items-center text-muted small mb-3">
+                        <div class="position-relative d-inline-block me-2">
+                            <a href="{{ url_for('view_profile', student_id=group.created_by) }}" class="text-decoration-none">
+                                <i class="fas fa-user-circle text-secondary"></i>
+                            </a>
+                        </div>
+                        Host: {{ group.creator_name }}
+                    </div>
+                    
+                    <div class="d-flex align-items-center mb-2 text-secondary small">
+                        <i class="fas fa-map-marker-alt me-2 text-danger opacity-75" style="width: 16px;"></i> {{ group.location }}
+                    </div>
+                    <div class="d-flex align-items-center mb-3 text-secondary small">
+                        <i class="fas fa-clock me-2 text-warning opacity-75" style="width: 16px;"></i> {{ group.meet_time }}
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user-friends me-1 text-muted"></i>
+                            <span class="fw-bold {% if group.member_count >= group.max_members %}text-danger{% else %}text-dark{% endif %}">
+                                {{ group.member_count }}/{{ group.max_members }}
+                            </span>
+                        </div>
+                        
+                        {% if group.is_member %}
+                            <a href="{{ url_for('join_study_group', group_id=group.id) }}" class="btn btn-sm btn-outline-danger rounded-pill px-3">Leave</a>
+                        {% elif group.member_count < group.max_members %}
+                            <a href="{{ url_for('join_study_group', group_id=group.id) }}" class="btn btn-sm btn-success rounded-pill px-3">Join</a>
+                        {% else %}
+                            <button class="btn btn-sm btn-secondary rounded-pill px-3" disabled>Full</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <div class="text-muted opacity-25 mb-3"><i class="fas fa-user-graduate fa-4x"></i></div>
+            <h5>No active study groups</h5>
+            <p class="text-muted">Be the first to create one!</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal fade" id="createGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Create Study Group</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('create_study_group') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3"><label class="form-label fw-bold small">SUBJECT</label><input type="text" name="subject" class="form-control" placeholder="e.g. Data Structures" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold small">TOPIC</label><input type="text" name="topic" class="form-control" placeholder="e.g. Exam Prep - Unit 1" required></div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6"><label class="form-label fw-bold small">LOCATION</label><input type="text" name="location" class="form-control" placeholder="e.g. Library" required></div>
+                        <div class="col-6"><label class="form-label fw-bold small">MAX MEMBERS</label><input type="number" name="max_members" class="form-control" value="5" min="2" max="10" required></div>
+                    </div>
+                    <div class="mb-3"><label class="form-label fw-bold small">TIME</label><input type="text" name="meet_time" class="form-control" placeholder="e.g. Tomorrow 4 PM" required></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% for memory in memories %}
+<div class="col-sm-6 col-md-4 col-lg-3">
+    <div class="card border-0 shadow-sm h-100 overflow-hidden">
+        <a href="javascript:void(0);" data-src="{{ url_for('static', filename='media/' + memory.image_file) }}" data-title="{{ memory.title }}" onclick="openLightbox(this.getAttribute('data-src'), this.getAttribute('data-title'))">
+            <img src="{{ url_for('static', filename='media/' + memory.image_file) }}" class="card-img-top" style="height: 250px; object-fit: cover; transition: transform 0.3s ease;" alt="{{ memory.title }}" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        </a>
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-light text-primary border">{{ memory.category }}</span>
+                {% if session.get('admin') or session.get('student') == memory.user_id %}
+                <a href="{{ url_for('delete_memory', memory_id=memory.id) }}" class="text-danger small" onclick="return confirm('Delete this memory?')"><i class="fas fa-trash"></i></a>
+                {% endif %}
+            </div>
+            <h6 class="fw-bold mb-1 text-truncate" title="{{ memory.title }}">{{ memory.title }}</h6>
+            <div class="d-flex align-items-center mt-1 mb-1">
+                <div class="position-relative d-inline-block me-2">
+                    <a href="{{ url_for('view_profile', student_id=memory.user_id) }}" class="text-decoration-none">
+                        <i class="fas fa-user-circle text-muted fs-6"></i>
+                    </a>
+                </div>
+                <small class="text-muted text-truncate">By <span class="text-dark fw-medium">{{ memory.user_name }}</span></small>
+            </div>
+            <small class="text-muted" style="font-size: 0.7em;">{{ memory.timestamp | time_ago }}</small>
+        </div>
+    </div>
+</div>
+{% endfor %}

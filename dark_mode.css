@@ -1,0 +1,33 @@
+/* AU Daily - Dark Mode Styles */
+:root {
+    --dark-bg: #121212;
+    --dark-card: #1e1e1e;
+    --dark-text: #e0e0e0;
+    --dark-border: #333333;
+}
+
+body.dark-mode {
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+}
+
+.dark-mode .card, 
+.dark-mode .modal-content,
+.dark-mode .list-group-item {
+    background-color: var(--dark-card);
+    color: var(--dark-text);
+    border-color: var(--dark-border);
+}
+
+.dark-mode .navbar {
+    background-color: #000000 !important;
+    border-bottom: 1px solid var(--dark-border);
+}
+
+.dark-mode input, 
+.dark-mode textarea, 
+.dark-mode select {
+    background-color: #2c2c2c !important;
+    color: #ffffff !important;
+    border: 1px solid var(--dark-border) !important;
+}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold mb-0">Student Feedback</h3>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i> Back to Dashboard</a>
+    </div>
+
+    <div class="row">
+        {% for feedback, student_name, student_dept in feedbacks %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card shadow-sm border-0 h-100 rounded-4">
+                <div class="card-body d-flex flex-column">
+                    <div class="mb-3 text-primary"><i class="fas fa-quote-left fa-2x opacity-25"></i></div>
+                    <p class="card-text flex-grow-1">"{{ feedback.content }}"</p>
+                    {% if feedback.admin_response %}
+                    <div class="alert alert-success small py-2"><strong>Your reply:</strong> {{ feedback.admin_response }}</div>
+                    {% endif %}
+                    <form action="{{ url_for('reply_to_feedback', id=feedback.id) }}" method="POST" class="mb-3">
+                        <label class="form-label small fw-bold">Reply to student</label>
+                        <textarea class="form-control form-control-sm mb-2" name="reply" rows="2" maxlength="2000" required placeholder="Write an admin response..."></textarea>
+                        <button class="btn btn-primary btn-sm" type="submit"><i class="fas fa-paper-plane me-1"></i> Send reply</button>
+                    </form>
+                    <hr class="opacity-10">
+                    <div class="d-flex justify-content-between align-items-end">
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0" style="font-size: 0.9rem;">{{ student_name or 'Unknown Student' }} <span class="text-muted fw-normal">({{ feedback.user_id }})</span></h6>
+                            <small class="text-muted" style="font-size: 0.75rem;">{{ student_dept or 'Unknown Dept' }}</small>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.7rem;">{{ feedback.timestamp | time_ago }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center p-5 bg-white rounded-4 shadow-sm">
+            <div class="text-muted opacity-25 mb-3"><i class="fas fa-inbox fa-4x"></i></div>
+            <h5>No Feedback Received</h5>
+            <p class="text-muted">When students submit feedback, it will appear here.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .resume-lab { max-width: 1100px; margin: 24px auto 48px; padding: 20px; border-radius: 18px; background: #070d1c; color: #e8eefc; box-shadow: 0 22px 50px rgba(8, 14, 30, .18); }
+    .resume-lab * { box-sizing: border-box; }
+    .lab-upload { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: end; padding: 17px; border: 1px solid #1d2b48; border-radius: 13px; background: linear-gradient(115deg, #0c1830, #101b32); }
+    .lab-upload label, .dash-label { display: block; margin-bottom: 7px; color: #91a5ca; font-size: .67rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+    .lab-upload .form-control { min-height: 42px; border: 1px solid #243757; border-radius: 8px; background: #0a1428; color: #ecf2ff; font-size: .84rem; }
+    .lab-upload .form-control::file-selector-button { margin: -7px 10px -7px -12px; padding: 9px 12px; border: 0; background: #253b63; color: #e9efff; font-weight: 700; }
+    .lab-upload .form-control::placeholder { color: #607496; }
+    .lab-upload button { min-height: 42px; padding: 0 20px; border: 0; border-radius: 8px; background: #5d55e8; color: white; font-size: .84rem; font-weight: 800; }
+    .dashboard { margin-top: 18px; }
+    .file-bar { display: flex; align-items: center; gap: 13px; padding: 15px 17px; border: 1px solid #1c2b49; border-radius: 11px; background: #0c172c; }
+    .file-icon { display: grid; width: 39px; height: 39px; place-items: center; border-radius: 8px; background: #ee4e59; color: white; font-size: 1.1rem; }
+    .file-name { margin: 0; color: #f5f7ff; font-size: .87rem; font-weight: 800; }.file-meta { margin: 3px 0 0; color: #8799bb; font-size: .72rem; }
+    .file-target { margin-left: auto; color: #93a5c7; font-size: .72rem; }.file-target strong { display: block; color: #edf2ff; font-size: .8rem; }
+    .target-icon { margin-left: 15px; color: #ff5a74; font-size: 1.25rem; }
+    .stats-grid { display: grid; grid-template-columns: 1.35fr .9fr 1fr; gap: 12px; margin-top: 14px; }
+    .dash-card { padding: 18px; border: 1px solid #1b2945; border-radius: 10px; background: linear-gradient(145deg, #101b31, #0c1528); }
+    .score-card { display: flex; align-items: center; gap: 15px; }.score-circle { --score: 0; position: relative; display: grid; width: 76px; height: 76px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: conic-gradient(#5c79ff calc(var(--score) * 1%), #20314f 0); }.score-circle::after { position: absolute; width: 61px; height: 61px; border-radius: 50%; background: #111c32; content: ""; }.score-circle strong,.score-circle small { position: relative; z-index: 1; }.score-circle strong { font-size: 1.55rem; }.score-circle small { margin: 30px 0 0 -26px; color: #98a8c8; font-size: .55rem; }
+    .card-title { margin: 0 0 7px; color: #a9bad8; font-size: .67rem; font-weight: 800; }.big-green { margin: 0; color: #44db75; font-size: 1.38rem; font-weight: 800; }.good-copy { margin: 5px 0 0; color: #49d879; font-size: .75rem; font-weight: 700; }.tiny-copy { margin: 7px 0 0; color: #8799b9; font-size: .67rem; line-height: 1.45; }
+    .progress-line { height: 5px; margin-top: 12px; overflow: hidden; border-radius: 5px; background: #273752; }.progress-line i { display: block; width: var(--match); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #42da76, #7e8fff); }
+    .two-grid,.three-grid,.four-grid { display: grid; gap: 12px; margin-top: 12px; }.two-grid { grid-template-columns: 1fr 1fr; }.three-grid { grid-template-columns: repeat(3, 1fr); }.four-grid { grid-template-columns: repeat(4, 1fr); }
+    .dash-card h3 { margin: 0; color: #eaf0ff; font-size: .78rem; font-weight: 800; }.heading-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: #40cf70; }.heading-dot.red { background: #ff5e68; }.heading-dot.yellow { background: #ffb522; }.heading-dot.blue { background: #38a7ff; }.count { float: right; padding: 2px 6px; border-radius: 5px; background: #1d5737; color: #8df6ad; font-size: .62rem; }
+    .chip { display: inline-flex; align-items: center; gap: 5px; margin: 12px 5px 0 0; padding: 4px 7px; border: 1px solid #1d5137; border-radius: 4px; background: #102a25; color: #7ceba2; font-size: .62rem; font-weight: 700; }.chip::before { content: "✓"; }.chip.missing { border-color: #502b39; background: #2a1926; color: #ff8e9a; }.chip.missing::before { content: "×"; }.dash-link { display: block; margin-top: 14px; color: #778fff; font-size: .67rem; font-weight: 700; }
+    .list-card { min-height: 190px; }.output-list { margin: 11px 0 0; padding: 0; list-style: none; }.output-list li { display: flex; gap: 7px; align-items: start; padding: 5px 0; color: #b7c3dd; font-size: .66rem; line-height: 1.3; }.output-list i { margin-top: 1px; color: #46d879; }.weak-list i { color: #ffb422; }.suggestion-list i { display: grid; width: 14px; height: 14px; flex: 0 0 14px; place-items: center; border-radius: 50%; background: #1975dd; color: #fff; font-size: .5rem; font-style: normal; }
+    .keyword-split { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }.keyword-split h4 { margin: 12px 0 0; color: #8df6ad; font-size: .65rem; }.keyword-split h4.red-text { color: #ff9ba4; }.keyword-split .chip { margin-top: 7px; }
+    .analysis-table { width: 100%; margin-top: 8px; color: #c5d0e8; font-size: .66rem; }.analysis-table td { padding: 5px 0; border-bottom: 1px solid #192743; }.analysis-table td:last-child { color: #52dc7c; font-weight: 700; text-align: right; }.analysis-table tr.bad td:last-child { color: #f7b73b; }
+    .mini-stat { min-height: 104px; }.mini-icon { display: grid; width: 30px; height: 30px; margin-bottom: 13px; place-items: center; border-radius: 7px; background: #18295a; color: #6c86ff; }.mini-value { margin: 0; color: #f45ba4; font-size: 1.08rem; font-weight: 800; }.mini-label { margin: 4px 0 0; color: #8d9db9; font-size: .62rem; }.verdict { text-align: center; }.stars { color: #ffc52e; font-size: 1.2rem; letter-spacing: 2px; }.verdict .mini-value { color: #48d97d; font-size: .75rem; }
+    .tip { margin-top: 12px; padding: 9px 12px; border-radius: 6px; background: #10214b; color: #c3d3ff; font-size: .67rem; }.tip i { color: #ffcf3d; margin-right: 6px; }
+    @media(max-width: 800px){.lab-upload,.stats-grid,.two-grid,.three-grid,.four-grid{grid-template-columns:1fr}.file-target{margin-left:0}.file-bar{flex-wrap:wrap}.target-icon{display:none}}
+</style>
+
+<main class="resume-lab">
+    <form id="resumeForm" class="lab-upload" method="POST" enctype="multipart/form-data">
+        <div><label for="resume">Resume file</label><input id="resume" name="resume" class="form-control" type="file" accept=".pdf,.docx,.txt" required></div>
+        <div><label for="job_description">Target job description (optional)</label><input id="job_description" name="job_description" class="form-control" placeholder="Paste a role to calculate job match"></div>
+        <button id="analyzeButton" type="submit"><i class="fas fa-sparkles me-1"></i> Analyze resume</button>
+    </form>
+    <div id="analyzerError" class="alert alert-warning mt-3 mb-0 d-none" role="alert"></div>
+
+    {% if result %}
+    {% set job_match = result.jd_match.score if result.jd_match else none %}
+    <section class="dashboard" id="analysis-results">
+        <div class="file-bar"><span class="file-icon"><i class="fas fa-file-pdf"></i></span><div><p class="file-name">{{ resume_filename or 'Uploaded resume' }}</p><p class="file-meta">Uploaded for analysis · {{ result.word_count }} words detected</p></div><div class="file-target">Target Job Role<strong>{{ 'Job description match' if job_match is not none else 'General resume review' }}</strong></div><i class="fas fa-bullseye target-icon"></i></div>
+
+        <div class="stats-grid">
+            <article class="dash-card score-card"><div class="score-circle" style="--score: {{ result.score }}"><strong>{{ result.score }}</strong><small>/100</small></div><div><p class="card-title">RESUME SCORE</p><p class="good-copy">{{ result.verdict }}</p><p class="tiny-copy">Your resume has a foundation. The boxes below show exactly what to improve.</p></div></article>
+            <article class="dash-card"><p class="card-title">JOB MATCH</p><p class="big-green">{% if job_match is not none %}{{ job_match }}%{% else %}—{% endif %}</p><p class="good-copy">{% if job_match is not none %}Role comparison{% else %}Add a job description{% endif %}</p><div class="progress-line" style="--match: {{ job_match if job_match is not none else 0 }}%"><i></i></div></article>
+            <article class="dash-card"><p class="card-title">ATS COMPATIBILITY</p><p class="big-green">{{ result.ats_compatibility }}</p><p class="tiny-copy">Your resume is checked for clear sections, readable text, and ATS-safe formatting.</p></article>
+        </div>
+
+        <div class="two-grid">
+            <article class="dash-card"><h3><span class="heading-dot"></span>Skills Found <span class="count">{{ result.technical_skills|length + result.soft_skills|length }}</span></h3>{% for skill in result.technical_skills + result.soft_skills %}<span class="chip">{{ skill }}</span>{% else %}<p class="tiny-copy">No clear skills were detected.</p>{% endfor %}<span class="dash-link">Skills detected from your resume →</span></article>
+            <article class="dash-card"><h3><span class="heading-dot red"></span>Missing Skills <span class="count" style="background:#5a3038;color:#ffabb2">{{ result.missing_skills|length }}</span></h3>{% for skill in result.missing_skills %}<span class="chip missing">{{ skill }}</span>{% else %}<p class="tiny-copy">No important comparison skills are missing.</p>{% endfor %}<span class="dash-link">Improve your score by adding genuine skills →</span></article>
+        </div>
+
+        <div class="three-grid">
+            <article class="dash-card list-card"><h3><span class="heading-dot"></span>Strengths</h3><ul class="output-list">{% for strength in result.strengths %}<li><i class="fas fa-circle-check"></i>{{ strength }}</li>{% else %}<li><i class="fas fa-circle-info"></i>Add clearer projects and achievements.</li>{% endfor %}</ul></article>
+            <article class="dash-card list-card"><h3><span class="heading-dot yellow"></span>Weaknesses</h3><ul class="output-list weak-list">{% for weakness in result.weaknesses %}<li><i class="fas fa-circle-exclamation"></i>{{ weakness }}</li>{% else %}<li><i class="fas fa-circle-check"></i>No major core weaknesses found.</li>{% endfor %}</ul></article>
+            <article class="dash-card list-card"><h3><span class="heading-dot blue"></span>Suggestions for Improvement</h3><ul class="output-list suggestion-list">{% for suggestion in result.improvements %}<li><i>{{ loop.index }}</i>{{ suggestion }}</li>{% else %}<li><i>1</i>Tailor keywords for each role you apply to.</li>{% endfor %}</ul></article>
+        </div>
+
+        <div class="two-grid">
+            <article class="dash-card"><h3><span class="heading-dot blue"></span>Keyword Analysis</h3><div class="keyword-split"><div><h4>FOUND KEYWORDS</h4>{% for skill in result.technical_skills %}<span class="chip">{{ skill }}</span>{% else %}<p class="tiny-copy">No technical keywords</p>{% endfor %}</div><div><h4 class="red-text">MISSING KEYWORDS</h4>{% for skill in result.missing_skills %}<span class="chip missing">{{ skill }}</span>{% else %}<p class="tiny-copy">No missing keywords</p>{% endfor %}</div></div></article>
+            <article class="dash-card"><h3><span class="heading-dot" style="background:#bb6cff"></span>Section Analysis</h3><table class="analysis-table"><tbody>{% for name, found in result.sections.items() %}<tr class="{{ 'bad' if not found else '' }}"><td>{{ name }}</td><td>{{ 'Good ✓' if found else 'Needs Improvement △' }}</td></tr>{% endfor %}</tbody></table></article>
+        </div>
+
+        <div class="four-grid">
+            <article class="dash-card mini-stat"><span class="mini-icon"><i class="fas fa-briefcase"></i></span><p class="mini-value">{{ result.experience_years }}{% if result.experience_years != '—' %} Years{% endif %}</p><p class="mini-label">Relevant Experience</p></article>
+            <article class="dash-card mini-stat"><span class="mini-icon"><i class="fas fa-graduation-cap"></i></span><p class="mini-value">{{ result.education }}</p><p class="mini-label">Education detected</p></article>
+            <article class="dash-card mini-stat"><span class="mini-icon"><i class="fas fa-code"></i></span><p class="mini-value">{{ result.project_count }}</p><p class="mini-label">Projects detected</p></article>
+            <article class="dash-card mini-stat verdict"><p class="card-title">OVERALL VERDICT</p><div class="stars">★★★★<span style="color:#354763">★</span></div><p class="mini-value">{{ result.verdict }}</p></article>
+        </div>
+        <div class="tip"><i class="fas fa-lightbulb"></i>Tip: Focus on adding genuine missing skills and measurable achievements to increase your score.</div>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}
+{% block scripts %}
+<script>
+    const resumeForm = document.getElementById('resumeForm');
+    const analyzeButton = document.getElementById('analyzeButton');
+    const analyzerError = document.getElementById('analyzerError');
+
+    resumeForm?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const originalLabel = analyzeButton.innerHTML;
+        analyzerError.classList.add('d-none');
+        analyzeButton.disabled = true;
+        analyzeButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing…';
+
+        try {
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: new FormData(resumeForm),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const responseType = response.headers.get('content-type') || '';
+            if (responseType.includes('application/json')) {
+                const data = await response.json();
+                throw new Error(data.error || 'The resume could not be analyzed.');
+            }
+            const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const nextDashboard = page.querySelector('.dashboard');
+
+            if (!response.ok || !nextDashboard) {
+                const serverMessage = page.querySelector('.alert')?.textContent.trim();
+                throw new Error(serverMessage || 'No analysis report was returned. Please try uploading the resume again.');
+            }
+
+            const currentDashboard = document.querySelector('.dashboard');
+            if (currentDashboard) {
+                currentDashboard.replaceWith(nextDashboard);
+            } else {
+                resumeForm.closest('.resume-lab').insertAdjacentElement('beforeend', nextDashboard);
+            }
+            nextDashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (error) {
+            analyzerError.textContent = error.message;
+            analyzerError.classList.remove('d-none');
+            analyzerError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } finally {
+            analyzeButton.disabled = false;
+            analyzeButton.innerHTML = originalLabel;
+        }
+    });
+</script>
+{% endblock %}

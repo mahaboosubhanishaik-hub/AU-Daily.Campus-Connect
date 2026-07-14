@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold">My Reports History</h3>
+        <a href="{{ url_for('submit_report') }}" class="btn btn-outline-danger"><i class="bi bi-plus-lg me-1"></i> New Report</a>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Date</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in reports %}
+                        <tr>
+                            <td class="ps-4 text-muted small">{{ r.timestamp | display_time }}</td>
+                            <td class="fw-bold">{{ r.report_type }}</td>
+                            <td class="text-truncate" style="max-width: 200px;">{{ r.description }}</td>
+                            <td>
+                                {% if r.status == 'Pending' %}
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>
+                                {% elif r.status == 'In Progress' %}
+                                    <span class="badge bg-info text-dark"><i class="bi bi-gear"></i> In Progress</span>
+                                {% else %}
+                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Resolved</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center py-4 text-muted">You haven't submitted any reports yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

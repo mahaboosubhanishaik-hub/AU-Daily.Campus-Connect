@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-0 shadow-lg rounded-4">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <h3 class="fw-bold">Edit Event</h3>
+                    <p class="text-muted">Update the details of your event</p>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted ps-1">EVENT TITLE</label>
+                        <input type="text" name="title" class="form-control bg-light border-0 py-2 rounded-3" value="{{ event.title }}" required>
+                    </div>
+                    
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted ps-1">DEPARTMENT</label>
+                            <select name="department" class="form-select bg-light border-0 py-2 rounded-3" required>
+                                {% for dept in departments %}
+                                <option value="{{ dept }}" {% if dept == event.department %}selected{% endif %}>{{ dept }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted ps-1">DATE</label>
+                            <input type="date" name="date" class="form-control bg-light border-0 py-2 rounded-3" value="{{ event.date }}" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted ps-1">DESCRIPTION</label>
+                        <textarea name="description" class="form-control bg-light border-0 py-2 rounded-3" rows="4" required>{{ event.description }}</textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-muted ps-1">UPDATE MEDIA</label>
+                        <input type="file" name="image" class="form-control bg-light border-0 rounded-3" id="mediaInput" accept="image/*,video/*">
+                        <div id="preview-container" class="mt-3 text-center rounded-3 overflow-hidden"></div>
+                        {% if event.image_file %}
+                        <div class="mt-2 p-2 bg-light rounded-3 text-center" id="current-media">
+                            <small class="text-muted d-block mb-1">Current Media:</small>
+                            <span class="badge bg-secondary">{{ event.image_file }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary rounded-pill py-2 fw-bold shadow-sm">Save Changes</button>
+                        <a href="{{ request.referrer or url_for('home') }}" class="btn btn-light rounded-pill py-2 text-muted">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cropper Modal -->
+<div class="modal fade" id="cropModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Crop Event Media</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div style="max-height: 500px; overflow: hidden;">
+          <img id="imageToCrop" style="max-width: 100%; display: block;">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" id="cropBtn">Crop Media</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    let cropper;
+    const mediaInput = document.getElementById('mediaInput');
+    const previewContainer = document.getElementById('preview-container');
+    const imageToCrop = document.getElementById('imageToCrop');
+    const currentMedia = document.getElementById('current-media');
+    let cropModalElement;
+    let cropModal;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        cropModalElement = document.getElementById('cropModal');
+        cropModal = new bootstrap.Modal(cropModalElement);
+
+        cropModalElement.addEventListener('shown.bs.modal', function () {
+            cropper = new Cropper(imageToCrop, {
+                viewMode: 1,
+                autoCropArea: 1,
+            });
+        });
+
+        cropModalElement.addEventListener('hidden.bs.modal', function () {
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+            if (previewContainer.innerHTML === '' && mediaInput.files.length > 0) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(mediaInput.files[0]);
+                img.className = 'img-fluid rounded shadow-sm';
+                img.style.maxHeight = '300px';
+                previewContainer.appendChild(img);
+            }
+        });
+
+        document.getElementById('cropBtn').addEventListener('click', function() {
+            if (!cropper) return;
+            
+            cropper.getCroppedCanvas().toBlob(function(blob) {
+                const croppedFile = new File([blob], "event_media.jpg", { type: "image/jpeg" });
+                const dt = new DataTransfer();
+                dt.items.add(croppedFile);
+                mediaInput.files = dt.files;
+                
+                previewContainer.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(blob);
+                img.className = 'img-fluid rounded shadow-sm';
+                img.style.maxHeight = '300px';
+                previewContainer.appendChild(img);
+                
+                cropModal.hide();
+            }, 'image/jpeg', 0.9);
+        });
+    });
+
+    mediaInput.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        previewContainer.innerHTML = ''; 
+
+        if (file) {
+            if (currentMedia) currentMedia.style.display = 'none';
+
+            const fileType = file.type;
+            const fileURL = URL.createObjectURL(file);
+
+            if (fileType.startsWith('image/')) {
+                imageToCrop.src = fileURL;
+                if(cropModal) cropModal.show();
+            } else if (fileType.startsWith('video/')) {
+                const video = document.createElement('video');
+                video.src = fileURL;
+                video.controls = true;
+                video.className = 'img-fluid rounded shadow-sm';
+                video.style.maxHeight = '300px';
+                previewContainer.appendChild(video);
+            }
+        } else {
+            if (currentMedia) currentMedia.style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}

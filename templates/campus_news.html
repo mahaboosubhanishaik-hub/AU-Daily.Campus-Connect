@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        
+        <!-- Post Creation Form -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Share an Update</h5>
+                <form action="{{ url_for('add_news_post') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <textarea name="content" id="newsContent" class="form-control" rows="3" placeholder="What's happening on campus?" required maxlength="280"></textarea>
+                        <div class="text-end text-muted small mt-1"><span id="charCount">0</span>/280</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newsImage" class="form-label small">Attach an image or video (optional)</label>
+                        <input class="form-control form-control-sm" type="file" id="newsImage" name="image" accept="image/*,video/*">
+                    </div>
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary">Post</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- News Feed -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="mb-0">Campus News</h3>
+        </div>
+        
+        <ul class="nav nav-pills mb-4">
+            <li class="nav-item"><a class="nav-link {% if feed_type == 'all' %}active{% endif %}" href="{{ url_for('campus_news', feed='all') }}">All Posts</a></li>
+            <li class="nav-item"><a class="nav-link {% if feed_type == 'following' %}active{% endif %}" href="{{ url_for('campus_news', feed='following') }}">Following</a></li>
+            {% if session.get('student') %}
+            <li class="nav-item"><a class="nav-link {% if feed_type == 'department' %}active{% endif %}" href="{{ url_for('campus_news', feed='department') }}">My Department</a></li>
+            {% endif %}
+        </ul>
+
+        <div id="news-feed-container">
+            {% include '_news_posts.html' %}
+        </div>
+
+        {% if pagination.has_next %}
+        <div id="loading-indicator" class="text-center mt-4 py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+        {% elif not posts %}
+        <div class="text-center py-5">
+            <p class="text-muted">The news feed is empty. Be the first to post!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const newsFeedContainer = document.getElementById('news-feed-container');
+    let page = 2; // Start with the second page
+    let isLoading = false;
+
+    const loadMorePosts = () => {
+        if (isLoading) return;
+        isLoading = true;
+
+        fetch(`{{ url_for('campus_news', feed=feed_type) }}&page=${page}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.text())
+        .then(html => {
+            if (html.trim()) {
+                newsFeedContainer.insertAdjacentHTML('beforeend', html);
+                page++;
+                isLoading = false;
+            } else {
+                loadingIndicator.style.display = 'none'; // No more posts, hide indicator
+                observer.disconnect(); // Stop observing
+            }
+        })
+        .catch(() => isLoading = false);
+    };
+
+    if (loadingIndicator) {
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                loadMorePosts();
+            }
+        }, {
+            rootMargin: '0px 0px 200px 0px' // Trigger when 200px from bottom
+        });
+        observer.observe(loadingIndicator);
+    }
+});
+</script>
+
+<script>
+    const textarea = document.getElementById('newsContent');
+    const charCount = document.getElementById('charCount');
+    textarea.addEventListener('input', function() {
+        charCount.textContent = this.value.length;
+    });
+</script>
+
+<script>
+function likeNewsPost(postId) {
+    fetch('/like_news/' + postId, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const likeBtn = document.getElementById(`news-like-btn-${postId}`);
+                likeBtn.innerHTML = (data.liked ? '❤️' : '🤍') + ' <span class="text-muted">' + data.likes + '</span>';
+            }
+        });
+}
+
+function editNewsComment(commentId, currentContent) {
+    const newContent = prompt("Edit your comment:", currentContent);
+    if (newContent && newContent.trim() !== "" && newContent !== currentContent) {
+        const formData = new FormData();
+        formData.append('content', newContent);
+        fetch('/edit_news_comment/' + commentId, {
+            method: 'POST',
+            body: formData
+        }).then(() => {
+            window.location.reload();
+        });
+    }
+}
+
+function postNewsComment(e, postId) {
+    e.preventDefault();
+    const form = e.target;
+    const input = form.querySelector('input[name="content"]');
+    const content = input.value;
+    
+    const formData = new FormData();
+    formData.append('content', content);
+
+    fetch('/comment_news/' + postId, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const container = document.getElementById(`news-comments-container-${postId}`);
+            container.classList.remove('d-none');
+            
+            const newComment = `
+                <div class="d-flex mb-2 align-items-start" id="comment-display-${data.comment_id}">
+                    <div class="fw-bold small me-2 text-nowrap">${data.user_name}:</div>
+                    <div class="small text-muted flex-grow-1 text-break">${data.content}</div>
+                    <div class="ms-2 text-nowrap">
+                        <a href="javascript:void(0)" onclick="toggleNewsCommentEdit('${data.comment_id}')" class="text-primary small me-1" title="Edit"><i class="fas fa-edit"></i></a>
+                        <a href="/delete_news_comment/${data.comment_id}" class="text-danger small" onclick="return confirm('Delete this comment?')" title="Delete"><i class="fas fa-times"></i></a>
+                    </div>
+                </div>
+                <form action="/edit_news_comment/${data.comment_id}" method="POST" class="d-none mb-2" id="comment-edit-form-${data.comment_id}">
+                    <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden">
+                        <input type="text" name="content" class="form-control border-0 bg-white px-3" value="${data.content}" required>
+                        <button type="submit" class="btn btn-primary px-3">Save</button>
+                        <button type="button" class="btn btn-light px-3" onclick="toggleNewsCommentEdit('${data.comment_id}')">Cancel</button>
+                    </div>
+                </form>`;
+            container.insertAdjacentHTML('beforeend', newComment);
+            input.value = ''; // Clear input
+            
+            // Update comment count text (optional, requires parsing current count)
+        }
+    });
+}
+</script>
+{% endblock %}

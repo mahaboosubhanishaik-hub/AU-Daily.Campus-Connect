@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card border-0 shadow-lg rounded-4 mt-4">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <div class="bg-warning bg-opacity-10 text-warning rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="far fa-lightbulb fa-lg"></i>
+                    </div>
+                    <h3 class="fw-bold">Feedback & Suggestions</h3>
+                    <p class="text-muted">Have an idea for a new feature? Found a bug? Let us know!</p>
+                </div>
+
+                <form method="POST">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-muted">YOUR SUGGESTION</label>
+                        <textarea name="content" class="form-control bg-light border-0 py-3 rounded-3" rows="5" placeholder="I think the app should have..." required></textarea>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary rounded-pill py-2 fw-bold shadow-sm">Submit Feedback</button>
+                        <a href="{{ url_for('home') }}" class="btn btn-light rounded-pill py-2 text-muted">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
