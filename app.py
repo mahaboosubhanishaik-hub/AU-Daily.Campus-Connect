@@ -92,14 +92,15 @@ FAST2SMS_OTP_ID = os.getenv('FAST2SMS_OTP_ID')
 # Support the existing deployment variable name while preferring the explicit one.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 gemini_client = None
-if GEMINI_API_KEY and genai:
+if genai and GEMINI_API_KEY:
     try:
+        genai.configure(api_key=GEMINI_API_KEY)
         gemini_client = genai.Client(api_key=GEMINI_API_KEY)
     except Exception as e:
         print(f"🔴 WARNING: Gemini API Key could not be configured. AI features will be disabled. Error: {e}")
         GEMINI_API_KEY = None # Disable AI if key is invalid
-elif GEMINI_API_KEY:
-    print("WARNING: google-genai is not installed. AI features will be disabled.")
+elif not genai and GEMINI_API_KEY:
+    print("🟡 WARNING: google-genai is not installed. AI features will be disabled.")
     GEMINI_API_KEY = None
 
 password_reset_serializer = URLSafeTimedSerializer(app.secret_key, salt="student-password-reset")
