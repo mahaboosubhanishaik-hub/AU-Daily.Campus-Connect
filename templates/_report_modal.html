@@ -1,0 +1,56 @@
+<!-- Report Modal -->
+<div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="reportForm" action="{{ url_for('main.submit_report') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reportModalLabel"><i class="fas fa-flag me-2"></i>Submit a Report</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="report-alert-placeholder"></div>
+                    <p class="small text-muted">Found something that violates the community guidelines? Let us know.</p>
+                    
+                    <div class="mb-3">
+                        <label for="report_type" class="form-label">Issue Type</label>
+                        <select class="form-select" id="report_type" name="report_type" required>
+                            <option value="" selected disabled>Select an issue...</option>
+                            <option value="Spam">Spam or Misleading Content</option>
+                            <option value="Abuse">Harassment or Hate Speech</option>
+                            <option value="Fake Job">Fake Job or Scam</option>
+                            <option value="Bug">Technical Bug or Glitch</option>
+                            <option value="Other">Other Issue</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4" placeholder="Please provide as much detail as possible, including links or names if relevant." required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="screenshot" class="form-label">Attach Screenshot (Optional)</label>
+                        <input class="form-control" type="file" id="screenshot" name="screenshot" accept="image/*">
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="yes" id="is_anonymous" name="is_anonymous">
+                        <label class="form-check-label" for="is_anonymous">
+                            Submit Anonymously
+                        </label>
+                    </div>
+
+                    <!-- Hidden fields for context -->
+                    <input type="hidden" id="report_item_type" name="item_type">
+                    <input type="hidden" id="report_item_id" name="item_id">
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-paper-plane me-2"></i>Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

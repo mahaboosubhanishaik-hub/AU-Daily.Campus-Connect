@@ -62,14 +62,11 @@ The "AU Daily - Campus Connect" is a comprehensive, centralized web-based portal
 The project follows a modern Client-Server computational model structured into four key areas:
 
 - **Objective:** To develop a centralized, highly responsive web portal and an AI-driven Smart Placement Assistant that bridges campus communication gaps and provides tailored, data-backed career guidance.
-- **Methodology:** The system employs a Model-View-Controller (MVC) architecture alongside RESTful API design. It integrates a custom Content-Based Filtering algorithm for event recommendations and utilizes LLM contextual analysis with Google Search Grounding to cross-reference candidate resumes against real-time job requirements.
+- **Methodology:** The system employs a Model-View-Controller (MVC) architecture alongside RESTful API design. It integrates a custom Content-Based Filtering algorithm for event recommendations and uses LLM-based analysis to compare candidate resumes against supplied job descriptions.
 - **Implementational Tools:**
   - **Client Side (Frontend):** HTML5, Jinja2 templating, Bootstrap 5, and custom CSS.
   - **Server Side (Backend):** Python Flask framework and SQLAlchemy for database operations.
-  - **AI Integration:** Google Gemini API (`gemini-2.0-flash`).
-  - **AI Integration:** Google Gemini API (`gemini-2.0-flash`).
-  - **AI Integration:** Google Gemini API (`gemini-2.0-flash`).
-  - **AI Integration:** Google Gemini API (`gemini-2.0-flash`).
+    - **AI Integration:** Google Gemini API via the `google-genai` SDK.
 - **Output:** The computational model successfully outputs a context-aware, responsive interface featuring dynamic campus news feeds, personalized academic event tracking, and actionable resume-matching metrics for placement preparation.
 
 ### 1.3 Existing System
@@ -87,7 +84,7 @@ The primary issues observed are:
 ## CHAPTER 2: LITERATURE SURVEY
 
 The literature survey involved analyzing existing Learning Management Systems (LMS) and campus networking tools like Blackboard, Canvas, and Google Classroom. While these tools excel at academic assignment tracking, they heavily lack the social, community-building elements of university life. Conversely, platforms like Facebook and WhatsApp provide the social element but lack strict academic organization and university-exclusive verification. 
-Research on the implementation of Large Language Models (LLMs) in educational portals indicated that students benefit heavily from tailored career guidance. However, general AI often hallucinates specific job requirements. Thus, this project introduces "Google Search Grounding" within the Smart Placement Assistant to fetch real-time job requirements directly from external career links and provide accurate resume matching.
+Research on the implementation of Large Language Models (LLMs) in educational portals indicated that students benefit heavily from tailored career guidance. However, general AI often hallucinates specific job requirements. Thus, this project uses structured Gemini-assisted resume matching against user-provided job descriptions to keep the analysis focused and practical.
 
 ---
 
@@ -203,18 +200,17 @@ In a bustling university environment, students can easily experience information
 - **Step 4 (Keyword Matching):** A predefined dictionary maps each department to relevant industry keywords (e.g., Computer Science maps to 'hackathon', 'ai', 'cyber'). The algorithm scans the title and description of every event, adding +2 points for every keyword match. This intelligently surfaces inter-disciplinary events that align with the student's likely skill set.
 - **Step 5 (Sorting & Rendering):** Finally, events are sorted dynamically by this calculated recommendation score in descending order, displaying the most relevant opportunities at the top of the user's dashboard with a distinct "Recommended" UI badge.
 
-**2. Smart Placement Assistant (Retrieval-Augmented Generation Workflow)**
-The placement assistant relies on a complex pipeline that merges document parsing, Prompt Engineering, and Large Language Model (LLM) inference utilizing the Google Gemini API.
+**2. Smart Placement Assistant (Resume Analysis Workflow)**
+The placement assistant relies on a pipeline that merges document parsing, prompt engineering, and Large Language Model (LLM) inference using the Google Gemini API.
 - **Document Parsing:** When a student uploads a resume, the `PyPDF2` library executes a robust text extraction loop across all pages, stripping out formatting to isolate raw textual data representing the candidate's skills and experiences.
-- **Search Grounding Execution:** The algorithm receives a target job description URL. Instead of relying purely on static, pre-trained LLM data, the algorithm utilizes Google Search Grounding to perform a real-time web query on the provided link, fetching the most up-to-date and accurate requirements for that specific job posting.
-- **Comparative Analysis:** A strict System Instruction forces the Gemini AI model to act as a Technical HR evaluator. The model cross-references the parsed resume data against the dynamically fetched job requirements.
-- **Structured Output Generation:** The algorithm strictly outputs a formatted Markdown response detailing four critical metrics: an Overall Match Percentage, a list of Matching Skills, a list of Missing Skills, and Actionable Recommendations for interview preparation.
+- **Comparative Analysis:** The assistant compares the parsed resume text against a user-provided job description and prepares a structured prompt for the Gemini model.
+- **Structured Output Generation:** The algorithm outputs a JSON-style response detailing the match score, matching skills, missing skills, and an AI analysis status for placement guidance.
 
-**3. Secure Account Recovery (Cryptographic OTP Algorithm)**
-To maintain the integrity of the exclusive user base, account recovery relies on a time-sensitive, cryptographically secure OTP (One-Time Password) workflow.
-- When a password reset is initiated, the system generates a secure 6-digit pseudorandom numerical string.
-- Instead of storing the plain-text OTP, the system hashes it using `pbkdf2:sha256` and stores only the hash in the active user session.
-- The raw OTP is dispatched via SMTP (`Flask-Mail`). When the user inputs the OTP, the system uses `check_password_hash` to validate the entry. This prevents intercept attacks and ensures that even if the session cache is compromised, the actual OTP value remains secure.
+**3. Secure Account Recovery (Password Reset Workflow)**
+To maintain the integrity of the exclusive user base, account recovery relies on a time-sensitive password reset workflow.
+- When a password reset is initiated, the system generates a secure token linked to the student's account state.
+- The token is dispatched via SMTP (`Flask-Mail`). When the user opens the link, the system validates the token and the current password hash before allowing a reset.
+- This prevents reuse of stale links and ensures that a password reset becomes invalid after the password changes.
 
 **Figure 03: Flow Chart (Smart Event Recommendation Algorithm)**
 
@@ -369,7 +365,7 @@ def analyze_placement():
     
     search_tool = types.Tool(google_search=types.GoogleSearch())
     response = client.models.generate_content(
-        model='gemini-2.0-flash',
+        model='gemini-1.5-flash-latest',
         contents=prompt,
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,

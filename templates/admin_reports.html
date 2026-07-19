@@ -79,6 +79,7 @@
                             </td>
                             <td>
                                 <form action="{{ url_for('update_report_status', id=r.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <select name="status" class="form-select form-select-sm shadow-none" onchange="this.form.submit()" style="width: 120px;">
                                         <option value="Pending" {% if r.status == 'Pending' %}selected{% endif %}>Pending</option>
                                         <option value="In Progress" {% if r.status == 'In Progress' %}selected{% endif %}>In Progress</option>
@@ -92,6 +93,7 @@
                                 {% endif %}
                                 {% if r.user_id %}
                                 <form action="{{ url_for('reply_to_report', id=r.id) }}" method="POST" class="mb-2">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <textarea class="form-control form-control-sm mb-1" name="reply" rows="2" maxlength="2000" required placeholder="Reply to this student..."></textarea>
                                     <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-send"></i> Send reply</button>
                                 </form>
@@ -99,6 +101,7 @@
                                 <small class="text-muted d-block mb-2">Anonymous report — no reply address.</small>
                                 {% endif %}
                                 <form action="{{ url_for('action_report', id=r.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     {% if r.item_type and r.item_id %}
                                         <button type="submit" name="action" value="delete_post" class="btn btn-sm btn-outline-danger shadow-sm me-1" onclick="return confirm('Are you sure you want to delete the offending {{ r.item_type }}?')">
                                             <i class="bi bi-trash"></i> Delete Post

@@ -26,7 +26,7 @@
                     <h5 class="card-title fw-bold mb-1">{{ group.topic }}</h5>
                     <div class="d-flex align-items-center text-muted small mb-3">
                         <div class="position-relative d-inline-block me-2">
-                            <a href="{{ url_for('view_profile', student_id=group.created_by) }}" class="text-decoration-none">
+                            <a href="{{ url_for('main.view_profile', student_id=group.created_by) }}" class="text-decoration-none">
                                 <i class="fas fa-user-circle text-secondary"></i>
                             </a>
                         </div>

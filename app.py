@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response, abort, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response, abort, send_from_directory, current_app, Blueprint, g
 from flask_mail import Mail, Message
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -26,6 +26,7 @@ from markupsafe import escape
 import calendar
 import hmac
 import secrets
+import sys
 from functools import wraps
 from urllib.parse import urlparse, urljoin
 from PyPDF2 import PdfReader
@@ -37,73 +38,58 @@ except ImportError:
     genai = None
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
-# Hosting-provider secrets must take precedence over any local .env file.
-load_dotenv(env_path, override=False)
+# Ensure `from app import ...` resolves to this running module when the file is
+# executed as a script. That prevents a second import of `app.py` during
+# `auth.py` initialization.
+sys.modules.setdefault('app', sys.modules[__name__])
 
-app = Flask(__name__)
+db = SQLAlchemy()
+mail = Mail()
+migrate = Migrate()
+password_reset_serializer = None # Will be initialized in the app factory
+
+
+def passthrough_wsgi_app(wsgi_app):
+    """Keep the default Flask WSGI chain explicit and stable across launch modes."""
+    def wrapped(environ, start_response):
+        return wsgi_app(environ, start_response)
+
+    return wrapped
 
 is_production = os.getenv("APP_ENV", os.getenv("FLASK_ENV", "development")).lower() == "production"
-trusted_proxy_count = int(os.getenv("TRUST_PROXY_COUNT", "0"))
-if trusted_proxy_count:
-    # Only trust forwarding headers from the explicitly configured number of proxies.
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=trusted_proxy_count, x_proto=trusted_proxy_count, x_host=trusted_proxy_count)
-secret_key = os.getenv("SECRET_KEY")
-if not secret_key:
-    if is_production:
-        raise RuntimeError("SECRET_KEY must be configured before starting in production.")
-    # A random development key avoids accidentally deploying a known default key.
-    secret_key = secrets.token_urlsafe(48)
-    app.logger.warning("SECRET_KEY is not set; using a temporary development-only key.")
-app.secret_key = secret_key
-app.config.update(
-    MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-    MAIL_PORT=int(os.getenv("MAIL_PORT", "587")),
-    MAIL_USE_TLS=os.getenv("MAIL_USE_TLS", "true").lower() in {"1", "true", "yes"},
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-    MAIL_DEFAULT_SENDER=os.getenv("MAIL_DEFAULT_SENDER") or os.getenv("MAIL_USERNAME"),
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_SECURE=is_production,
-    PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
-)
-public_base_url = (os.getenv("PUBLIC_BASE_URL") or "").rstrip("/")
-if public_base_url:
-    parsed_public_url = urlparse(public_base_url)
-    if parsed_public_url.scheme not in {"http", "https"} or not parsed_public_url.netloc:
-        raise RuntimeError("PUBLIC_BASE_URL must be a complete http(s) URL.")
-elif is_production:
-    raise RuntimeError("PUBLIC_BASE_URL must be configured before starting in production.")
 
-if is_production:
-    app.config["PREFERRED_URL_SCHEME"] = "https"
-    # Flask enforces this when running on Flask 3.1+ (pinned in requirements).
-    app.config["TRUSTED_HOSTS"] = [urlparse(public_base_url).netloc]
-
-mail = Mail(app)
-ADMIN_ALERT_RECIPIENT = os.getenv('ADMIN_ALERT_RECIPIENT')
-if is_production and not ADMIN_ALERT_RECIPIENT:
-    raise RuntimeError("ADMIN_ALERT_RECIPIENT must be configured before starting in production.")
-FAST2SMS_API_KEY = os.getenv('FAST2SMS_API_KEY')
-FAST2SMS_OTP_ID = os.getenv('FAST2SMS_OTP_ID')
-
+# # ==========================
 # GEMINI API CONFIGURATION
-# Support the existing deployment variable name while preferring the explicit one.
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+# ==========================
+
+import os
+
+try:
+    from google import genai
+except ImportError:
+    genai = None
+
+# Support both environment variable names
+GEMINI_API_KEY = (
+    os.getenv("GEMINI_API_KEY")
+    or os.getenv("GOOGLE_API_KEY")
+)
+
 gemini_client = None
+
 if genai and GEMINI_API_KEY:
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
+        # Initialize Gemini client using the installed google-genai SDK.
         gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        print("Gemini AI initialized successfully.")
     except Exception as e:
-        print(f"🔴 WARNING: Gemini API Key could not be configured. AI features will be disabled. Error: {e}")
-        GEMINI_API_KEY = None # Disable AI if key is invalid
-elif not genai and GEMINI_API_KEY:
-    print("🟡 WARNING: google-genai is not installed. AI features will be disabled.")
+        print(f"WARNING: Gemini API could not be initialized. AI features will be disabled. Error: {e}")
+        GEMINI_API_KEY = None
+
+elif GEMINI_API_KEY and not genai:
+    print("WARNING: google-genai package is not installed. AI features will be disabled.")
     GEMINI_API_KEY = None
 
-password_reset_serializer = URLSafeTimedSerializer(app.secret_key, salt="student-password-reset")
 def login_rate_limit_key(account_hint):
     """Limit repeated guesses by both source address and account identifier."""
     return f"{request.remote_addr or 'unknown'}:{(account_hint or '').strip().lower()[:120]}"
@@ -157,11 +143,6 @@ def csrf_token():
     return session['_csrf_token']
 
 
-@app.context_processor
-def inject_csrf_token():
-    return {'csrf_token': csrf_token()}
-
-
 def require_csrf(view):
     """Reject cross-site form posts before a destructive action is performed."""
     @wraps(view)
@@ -175,31 +156,6 @@ def require_csrf(view):
     return wrapped
 
 
-@app.before_request
-def protect_authenticated_mutations():
-    """Apply CSRF protection consistently to every signed-in POST request."""
-    if request.method in {'POST', 'PUT', 'PATCH', 'DELETE'} and ('student' in session or 'admin' in session):
-        submitted_token = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
-        if not submitted_token or not hmac.compare_digest(submitted_token, csrf_token()):
-            abort(400, description='Invalid or missing security token.')
-
-# UPLOAD CONFIGURATION
-app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'media')
-# Resources are served through an authenticated route, never directly from /static.
-app.config['RESOURCE_FOLDER'] = os.path.join(app.root_path, 'private_uploads', 'resources')
-app.config['LEGACY_RESOURCE_FOLDER'] = os.path.join(app.root_path, 'static', 'media', 'resources')
-app.config['CSS_FOLDER'] = os.path.join(app.root_path, 'static', 'css')
-
-# Ensure upload directories exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['RESOURCE_FOLDER'], exist_ok=True)
-os.makedirs(app.config['CSS_FOLDER'], exist_ok=True)
-
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'mp4', 'mov', 'avi', 'webm', 'pdf', 'docx', 'doc', 'pptx', 'ppt', 'txt'}
-app.config['RESOURCE_EXTENSIONS'] = {'pdf', 'docx', 'doc', 'pptx', 'ppt', 'txt'}
-app.config['RESUME_EXTENSIONS'] = {'pdf', 'docx', 'txt'}
-app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024  # Increased to 64MB to support modern high-res media
-
 IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic'}
 VIDEO_EXTENSIONS = {'mp4', 'mov', 'avi', 'webm'}
 
@@ -211,7 +167,7 @@ def allowed_file(filename):
 
 def allowed_media_file(filename):
     """Media fields must not accept documents merely because they are allowed elsewhere."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in (IMAGE_EXTENSIONS | VIDEO_EXTENSIONS)
 
 
 def upload_content_is_safe(file_storage):
@@ -222,7 +178,7 @@ def upload_content_is_safe(file_storage):
     """
     filename = secure_filename(file_storage.filename or '')
     ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-    if ext not in app.config['ALLOWED_EXTENSIONS']:
+    if ext not in current_app.config['ALLOWED_EXTENSIONS']:
         return False
     try:
         stream = file_storage.stream
@@ -255,16 +211,6 @@ def upload_content_is_safe(file_storage):
     return False
 
 
-@app.before_request
-def reject_disguised_uploads():
-    """Validate all ordinary uploads before any handler writes them to disk."""
-    if request.endpoint == 'upload_allowed_students':
-        return
-    for file_storage in request.files.values():
-        if file_storage and file_storage.filename and not upload_content_is_safe(file_storage):
-            abort(400, description='The uploaded file does not match a supported file type.')
-
-
 def safe_redirect_target(fallback):
     """Only redirect back to local pages; never trust a supplied external URL."""
     referrer = request.referrer
@@ -288,11 +234,45 @@ def valid_external_url(value):
     return parsed.scheme in {'http', 'https'} and bool(parsed.netloc)
 
 
+def time_ago(value):
+    if not value:
+        return ''
+    if isinstance(value, str):
+        return value
+
+    now = datetime.now(value.tzinfo) if getattr(value, 'tzinfo', None) else datetime.now()
+    delta = now - value
+    seconds = int(delta.total_seconds())
+
+    if seconds < 0:
+        seconds = 0
+
+    if seconds < 60:
+        return 'just now' if seconds < 5 else f'{seconds} seconds ago'
+    minutes = seconds // 60
+    if minutes < 60:
+        return f'{minutes} minute{"s" if minutes != 1 else ""} ago'
+    hours = minutes // 60
+    if hours < 24:
+        return f'{hours} hour{"s" if hours != 1 else ""} ago'
+    days = hours // 24
+    if days < 7:
+        return f'{days} day{"s" if days != 1 else ""} ago'
+    weeks = days // 7
+    if weeks < 5:
+        return f'{weeks} week{"s" if weeks != 1 else ""} ago'
+    months = days // 30
+    if months < 12:
+        return f'{months} month{"s" if months != 1 else ""} ago'
+    years = days // 365
+    return f'{years} year{"s" if years != 1 else ""} ago'
+
+
 def public_url_for(endpoint, **values):
     """Build security-sensitive public links from the configured canonical origin."""
     path = url_for(endpoint, **values)
-    if public_base_url:
-        return urljoin(f"{public_base_url}/", path.lstrip('/'))
+    if current_app.config.get('PUBLIC_BASE_URL'):
+        return urljoin(f"{current_app.config['PUBLIC_BASE_URL']}/", path.lstrip('/'))
     return url_for(endpoint, _external=True, **values)
 
 
@@ -300,24 +280,12 @@ def remove_uploaded_media(filename):
     """Delete a uniquely-named public upload when its database record is removed."""
     if not filename:
         return
-    path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
+    path = os.path.join(current_app.config['UPLOAD_FOLDER'], os.path.basename(filename))
     try:
         if os.path.isfile(path):
             os.remove(path)
     except OSError:
-        app.logger.warning('Could not remove uploaded media: %s', filename)
-
-# DATABASE CONNECTION
-db_url = os.getenv("DATABASE_URL")
-if not db_url:
-    print("🔴 FATAL ERROR: DATABASE_URL not found in .env file.")
-    import sys
-    sys.exit(1)
-app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+        current_app.logger.warning('Could not remove uploaded media: %s', filename)
 
 
 def verify_password_and_upgrade(account, submitted_password):
@@ -375,59 +343,6 @@ JOB_CATEGORIES = [
     '📢 Campus ambassador roles',
     '💰 Freelance / Part-time gigs'
 ]
-
-# TIME FILTER
-@app.template_filter('time_ago')
-def time_ago(date):
-    if not date:
-        return ""
-    
-    now = datetime.now()
-    diff = now - date
-    seconds = diff.total_seconds()
-    
-    clock_time = date.strftime('%I:%M %p').lstrip('0')
-    if date.date() == now.date():
-        return f"Today at {clock_time}"
-    if date.date() == (now - timedelta(days=1)).date():
-        return f"Yesterday at {clock_time}"
-    return f"{date.strftime('%d %b %Y')} at {clock_time}"
-
-@app.template_filter('display_time')
-def display_time(date):
-    """Show every saved action timestamp with a readable 12-hour clock."""
-    if not date:
-        return ""
-    return f"{date.strftime('%d %b %Y')} at {date.strftime('%I:%M %p').lstrip('0')}"
-
-# ERROR HANDLERS
-@app.errorhandler(413)
-@app.errorhandler(RequestEntityTooLarge)
-def handle_large_file(e):
-    flash("File is too large! Maximum size allowed is 64MB.")
-    return redirect(safe_redirect_target(url_for('home')))
-
-@app.after_request
-def add_no_cache_headers(response):
-    if request.endpoint in {'admin_login', 'student_login'}:
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
-    response.headers.setdefault('X-Frame-Options', 'DENY')
-    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
-    response.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-    response.headers.setdefault(
-        'Content-Security-Policy',
-        "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-        "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
-        "connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
-    )
-    if is_production:
-        response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-    return response
 
 # =========================
 # DATABASE MODELS
@@ -658,6 +573,7 @@ class RecoveryRequest(db.Model):
     """A password-recovery request that requires an administrator identity check."""
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.String(20), nullable=False, index=True)
+    recovery_email = db.Column(db.String(120), nullable=True)
     contact_note = db.Column(db.String(255), nullable=True)
     status = db.Column(db.String(30), nullable=False, default='Pending', index=True)
     reviewed_by = db.Column(db.String(20), nullable=True)
@@ -729,24 +645,6 @@ class JobPost(db.Model):
 # NOTIFICATION LOGIC
 # =========================
 
-@app.context_processor
-def inject_notifications():
-    unread_count = 0
-    unread_message_count = 0
-    admin_unread_count = 0
-    current_user_pic = None
-    if 'student' in session:
-        unread_count = Notification.query.filter_by(user_id=session['student'], is_read=False).count()
-        unread_message_count = PrivateMessage.query.filter_by(receiver_id=session['student'], is_read=False).count()
-        student = Student.query.filter_by(student_id=session['student']).first()
-        if student and student.profile_pic:
-            current_user_pic = student.profile_pic
-    elif 'admin' in session:
-        admin_unread_count = AdminNotification.query.filter_by(is_read=False).count()
-
-    return dict(unread_count=unread_count, unread_message_count=unread_message_count,
-                admin_unread_count=admin_unread_count, current_user_pic=current_user_pic)
-
 
 def create_admin_notification(category, message, endpoint):
     """Queue an administrator alert within the same database transaction as its event."""
@@ -759,17 +657,17 @@ def create_admin_notification(category, message, endpoint):
 
 def send_admin_alert(subject, title, details):
     """Email the admin without letting an email outage lose the in-app alert."""
-    if not ADMIN_ALERT_RECIPIENT:
-        app.logger.warning('Admin alert email is not configured; keeping the in-app alert only.')
+    if not current_app.config.get('ADMIN_ALERT_RECIPIENT'):
+        current_app.logger.warning('Admin alert email is not configured; keeping the in-app alert only.')
         return
     try:
         mail.send(Message(
             subject=subject,
-            recipients=[ADMIN_ALERT_RECIPIENT],
+            recipients=[current_app.config['ADMIN_ALERT_RECIPIENT']],
             html=render_template('admin_alert_email.html', title=title, details=details),
         ))
     except Exception:
-        app.logger.exception('Unable to send admin alert email')
+        current_app.logger.exception('Unable to send admin alert email')
 
 
 def notify_student_of_admin_reply(student_id, reply, subject, context):
@@ -791,7 +689,7 @@ def notify_student_of_admin_reply(student_id, reply, subject, context):
                 html=render_template('student_admin_reply_email.html', name=student.name, context=context, reply=reply),
             ))
         except Exception:
-            app.logger.exception('Unable to send student admin-reply email')
+            current_app.logger.exception('Unable to send student admin-reply email')
 
 
 def normalize_indian_mobile(value):
@@ -804,18 +702,18 @@ def normalize_indian_mobile(value):
 
 def fast2sms_otp_request(endpoint, payload):
     """Call Fast2SMS Smart OTP without exposing provider errors to users."""
-    if not FAST2SMS_API_KEY or not FAST2SMS_OTP_ID:
+    if not current_app.config.get('FAST2SMS_API_KEY') or not current_app.config.get('FAST2SMS_OTP_ID'):
         raise RuntimeError('Phone recovery is not configured. Set FAST2SMS_API_KEY and FAST2SMS_OTP_ID.')
     data = json.dumps(payload).encode('utf-8')
     req = urlrequest.Request(
         f'https://www.fast2sms.com/dev/otp/{endpoint}', data=data, method='POST',
-        headers={'Authorization': FAST2SMS_API_KEY, 'Content-Type': 'application/json'},
+        headers={'Authorization': current_app.config['FAST2SMS_API_KEY'], 'Content-Type': 'application/json'},
     )
     try:
         with urlrequest.urlopen(req, timeout=15) as response:
             return json.loads(response.read().decode('utf-8'))
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as error:
-        app.logger.warning('Fast2SMS %s request failed: %s', endpoint, error)
+        current_app.logger.warning('Fast2SMS %s request failed: %s', endpoint, error)
         return {'return': False}
 
 def check_upcoming_events(user_id):
@@ -834,19 +732,14 @@ def check_upcoming_events(user_id):
             db.session.add(Notification(user_id=user_id, message=msg, type='reminder', event_id=event.id))
     db.session.commit()
 
-@app.route('/manifest.json')
-def serve_manifest():
-    return app.send_static_file('manifest.json')
-
-@app.route('/sw.js')
-def serve_sw():
-    return app.send_static_file('sw.js')
-
 # =========================
 # HOME PAGE
 # =========================
 
-@app.route('/')
+bp = Blueprint('main', __name__)
+
+
+@bp.route('/')
 def home():
     user_id = session.get('student') or session.get('admin')
     if not user_id:
@@ -855,8 +748,7 @@ def home():
 
     # CRITICAL FIX: If admin clicks "Home", redirect to their dashboard, not the student feed.
     if 'admin' in session:
-        return redirect(url_for('admin_dashboard'))
-
+        return redirect(url_for('main.admin_dashboard'))
 
     student = None
     current_user_name = None
@@ -865,7 +757,7 @@ def home():
         student = Student.query.filter_by(student_id=session['student']).first()
         if not student:
             session.clear()
-            return render_template("welcome.html")
+            return redirect(url_for('main.home'))
         current_user_name = student.name
         # Check for automatic reminders for the logged-in student
         user_department = student.department #Store User Department
@@ -1138,34 +1030,25 @@ def analyze_resume_text(text, job_description=""):
 
     jd_match = None
     if job_description.strip():
-        if not GEMINI_API_KEY:
-            # Fallback to simple keyword matching if API key is missing
-            jd_words = {
-                word for word in re.findall(r"\b[a-zA-Z][a-zA-Z+#.]{2,}\b", job_description.lower())
-                if word not in {"and", "the", "for", "with", "you", "are", "this", "that", "will", "from", "our", "your"}
-            }
-            resume_words = set(words)
-            matched = sorted(jd_words & resume_words)
-            missing = sorted(jd_words - resume_words)[:12]
-            match_score = round((len(matched) / max(len(jd_words), 1)) * 100)
-            jd_match = {"score": match_score, "matched": matched[:16], "missing": missing, "ai_analysis": "Disabled"}
-            if match_score >= 35:
-                score += 10
-                strengths.append("Job description alignment")
-            else:
-                improvements.append("Customize the resume using important keywords from the target job description.")
+        stop_words = {
+            "and", "the", "for", "with", "you", "are", "this", "that", "will", "from", "our", "your",
+            "have", "has", "can", "able", "work", "role", "team", "job", "candidate", "required",
+            "preferred", "experience", "skills", "knowledge", "good", "strong"
+        }
+        jd_words = {
+            word for word in re.findall(r"\b[a-zA-Z][a-zA-Z+#.]{2,}\b", job_description.lower())
+            if word not in stop_words
+        }
+        resume_words = set(words)
+        matched = sorted(jd_words & resume_words)
+        missing = sorted(jd_words - resume_words)[:12]
+        match_score = round((len(matched) / max(len(jd_words), 1)) * 100)
+        jd_match = {"score": match_score, "matched": matched[:16], "missing": missing, "ai_analysis": "Local"}
+        if match_score >= 35:
+            score += 10
+            strengths.append("Job description alignment")
         else:
-            # Use Gemini API for advanced analysis
-            try:
-                prompt = f"Analyze this resume:\n\n{text}\n\nAgainst this job description:\n\n{job_description}\n\nProvide a match score (0-100), a list of matched skills, and a list of missing skills. Format the output as a simple dictionary string: {{'score': <score>, 'matched': ['skill1', 'skill2'], 'missing': ['skill3', 'skill4']}}"
-                response = gemini_client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-                # Basic parsing of the string response to a dict
-                response_dict_str = response.text.strip().replace("'", '"')
-                jd_match = json.loads(response_dict_str)
-                jd_match["ai_analysis"] = "Enabled"
-            except Exception as e:
-                app.logger.error(f"Gemini API call failed: {e}")
-                jd_match = {"score": 0, "matched": [], "missing": [], "ai_analysis": f"Error: {str(e)}"}
+            improvements.append("Customize the resume using important keywords from the target job description.")
 
     baseline_skills = ["python", "sql", "git", "github", "data structures", "algorithms", "html", "css", "javascript", "flask"]
     missing_skills = jd_match["missing"] if jd_match else [skill for skill in baseline_skills if skill not in matched_skills]
@@ -1228,12 +1111,12 @@ def analyze_resume_text(text, job_description=""):
         "jd_match": jd_match
     }
 
-@app.route('/resume_analyzer', methods=['GET', 'POST'])
+@bp.route('/resume_analyzer', methods=['GET', 'POST'])
 def resume_analyzer():
     if request.method == 'POST':
         if 'student' not in session and 'admin' not in session:
-            flash('Please sign in before analyzing a resume.', 'warning')
-            return redirect(url_for('student_login'))
+            flash('Please sign in before analyzing a resume.', 'warning') # This path is likely unreachable due to GET check
+            return redirect(url_for('auth.student_login'))
 
         resume_file = request.files.get('resume')
         job_description = request.form.get('job_description', '')
@@ -1243,7 +1126,7 @@ def resume_analyzer():
             return render_template('resume_analyzer.html'), 400
 
         ext = resume_file.filename.rsplit('.', 1)[1].lower() if '.' in resume_file.filename else ""
-        if ext not in app.config['RESUME_EXTENSIONS']:
+        if ext not in current_app.config['RESUME_EXTENSIONS']:
             flash(f"Please upload only {', '.join(sorted(app.config['RESUME_EXTENSIONS']))} files.", 'warning')
             return render_template('resume_analyzer.html'), 400
 
@@ -1252,7 +1135,7 @@ def resume_analyzer():
             result = analyze_resume_text(text, job_description)
             return render_template('resume_analyzer.html', result=result, resume_filename=secure_filename(resume_file.filename))
         except ValueError as e:
-            app.logger.info('Resume upload could not be read: %s', e)
+            current_app.logger.info('Resume upload could not be read: %s', e)
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'error': str(e)}), 422
             flash(str(e), 'warning')
@@ -1260,8 +1143,8 @@ def resume_analyzer():
         except Exception as e:
             # Use traceback to get detailed exception info for logging
             import traceback
-            app.logger.error("--- RESUME ANALYSIS FAILED ---")
-            app.logger.error(traceback.format_exc())
+            current_app.logger.error("--- RESUME ANALYSIS FAILED ---")
+            current_app.logger.error(traceback.format_exc())
             error_message = "The resume could not be analyzed due to a server error. Please try again later."
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 # CRITICAL FIX: Return a JSON error for AJAX, not an HTML page
@@ -1271,16 +1154,16 @@ def resume_analyzer():
 
     # Handle GET requests (just showing the page)
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     return render_template("resume_analyzer.html")
 
-@app.route('/placement', methods=['GET']) # Only GET for rendering the page
+@bp.route('/placement', methods=['GET']) # Only GET for rendering the page
 def placement():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
-    return render_template("placement.html")
+        return redirect(url_for('auth.student_login'))
+    return redirect(url_for('main.resume_analyzer'))
 
-@app.route('/analyze_placement', methods=['POST']) # New route for AJAX POST
+@bp.route('/analyze_placement', methods=['POST']) # New route for AJAX POST
 def analyze_placement():
     if 'student' not in session and 'admin' not in session:
         return jsonify({'success': False, 'error': 'Authentication required'}), 401
@@ -1292,8 +1175,8 @@ def analyze_placement():
         return jsonify({'success': False, 'error': 'Please upload a resume file.'})
 
     ext = resume_file.filename.rsplit('.', 1)[1].lower() if '.' in resume_file.filename else ""
-    if ext not in app.config['RESUME_EXTENSIONS']:
-        return jsonify({'success': False, 'error': f"Please upload only {', '.join(app.config['RESUME_EXTENSIONS'])} files."})
+    if ext not in current_app.config['RESUME_EXTENSIONS']:
+        return jsonify({'success': False, 'error': f"Please upload only {', '.join(sorted(current_app.config['RESUME_EXTENSIONS']))} files."})
 
     try:
         text = extract_resume_text(resume_file)
@@ -1301,8 +1184,8 @@ def analyze_placement():
         return jsonify({'success': True, 'analysis': result})
     except Exception as e:
         import traceback
-        app.logger.error("--- PLACEMENT ANALYSIS (AJAX) FAILED ---")
-        app.logger.error(traceback.format_exc())
+        current_app.logger.error("--- RESUME ANALYSIS (LEGACY AJAX) FAILED ---")
+        current_app.logger.error(traceback.format_exc())
         # Return a specific error to the client for better debugging.
         return jsonify({'success': False, 'error': 'Resume analysis failed due to a server error. Please try again later.'}), 500
 
@@ -1311,10 +1194,10 @@ def analyze_placement():
 # CAMPUS NEWS FEED
 # =========================
 
-@app.route('/campus_news')
+@bp.route('/campus_news')
 def campus_news():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     user_id = session.get('student') or session.get('admin')
     page = request.args.get('page', 1, type=int)
@@ -1361,15 +1244,15 @@ def campus_news():
 
     return render_template("campus_news.html", posts=posts, pagination=posts_pagination, feed_type=feed_type)
 
-@app.route('/add_news_post', methods=['POST'])
+@bp.route('/add_news_post', methods=['POST'])
 def add_news_post():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     content = request.form.get('content')
     if not content or len(content.strip()) == 0:
         flash("Post content cannot be empty.")
-        return redirect(url_for('campus_news'))
+        return redirect(url_for('main.campus_news'))
 
     # Handle Image Upload
     image = request.files.get('image')
@@ -1377,10 +1260,10 @@ def add_news_post():
     if image and image.filename != '':
         if allowed_media_file(image.filename):
             image_filename = f"{uuid.uuid4().hex}_{secure_filename(image.filename)}"
-            image.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
+            image.save(os.path.join(current_app.config['UPLOAD_FOLDER'], image_filename))
         else:
             flash("Invalid file type. Only images and videos are allowed.")
-            return redirect(url_for('campus_news')) # Ensure redirect on error
+            return redirect(url_for('main.campus_news')) # Ensure redirect on error
 
     user_id = session.get('student') or session.get('admin')
     user_name = "Admin"
@@ -1404,12 +1287,12 @@ def add_news_post():
     db.session.add(new_post)
     db.session.commit()
     flash("Your post has been published!")
-    return redirect(url_for('campus_news'))
+    return redirect(url_for('main.campus_news'))
 
-@app.route('/edit_news_post/<int:post_id>', methods=['POST'])
+@bp.route('/edit_news_post/<int:post_id>', methods=['POST'])
 def edit_news_post(post_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     post = NewsPost.query.get_or_404(post_id)
     current_user = session.get('student') or session.get('admin')
@@ -1420,13 +1303,13 @@ def edit_news_post(post_id):
             post.content = new_content.strip()
             db.session.commit()
             
-    return redirect(safe_redirect_target(url_for('campus_news')))
+    return redirect(safe_redirect_target(url_for('main.campus_news')))
 
-@app.route('/delete_news_post/<int:post_id>', methods=['POST'])
+@bp.route('/delete_news_post/<int:post_id>', methods=['POST'])
 @require_csrf
 def delete_news_post(post_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     post = NewsPost.query.get_or_404(post_id)
     current_user = session.get('student') or session.get('admin')
@@ -1439,13 +1322,13 @@ def delete_news_post(post_id):
     else:
         flash("You are not authorized to delete this post.")
     
-    return redirect(url_for('campus_news'))
+    return redirect(url_for('main.campus_news'))
 
-@app.route('/like_news/<int:post_id>', methods=['POST'])
+@bp.route('/like_news/<int:post_id>', methods=['POST'])
 @require_csrf
 def like_news_post(post_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
 
     user_id = session.get('student') or session.get('admin')
     
@@ -1460,10 +1343,10 @@ def like_news_post(post_id):
     db.session.commit()
     return jsonify({'success': True, 'likes': NewsLike.query.filter_by(post_id=post_id).count(), 'liked': not existing_like})
 
-@app.route('/comment_news/<int:post_id>', methods=['POST'])
+@bp.route('/comment_news/<int:post_id>', methods=['POST'])
 def add_news_comment(post_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
     
     content = request.form.get('content')
     if content and content.strip():
@@ -1492,11 +1375,11 @@ def add_news_comment(post_id):
         
     return jsonify({'success': False})
 
-@app.route('/delete_news_comment/<int:comment_id>', methods=['POST'])
+@bp.route('/delete_news_comment/<int:comment_id>', methods=['POST'])
 @require_csrf
 def delete_news_comment(comment_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     comment = NewsComment.query.get_or_404(comment_id)
     current_user = session.get('student') or session.get('admin')
@@ -1505,12 +1388,12 @@ def delete_news_comment(comment_id):
         db.session.delete(comment)
         db.session.commit()
         
-    return redirect(url_for('campus_news'))
+    return redirect(url_for('main.campus_news'))
 
-@app.route('/edit_news_comment/<int:comment_id>', methods=['POST'])
+@bp.route('/edit_news_comment/<int:comment_id>', methods=['POST'])
 def edit_news_comment(comment_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     comment = NewsComment.query.get_or_404(comment_id)
     current_user = session.get('student') or session.get('admin')
@@ -1521,12 +1404,12 @@ def edit_news_comment(comment_id):
             comment.content = new_content.strip()
             db.session.commit()
             
-    return redirect(safe_redirect_target(url_for('campus_news')))
+    return redirect(safe_redirect_target(url_for('main.campus_news')))
 
-@app.route('/notifications')
+@bp.route('/notifications')
 def notifications():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     user_id = session['student']
     # Fetch all notifications, newest first
@@ -1534,34 +1417,34 @@ def notifications():
     
     return render_template("notifications.html", notifications=notifs)
 
-@app.route('/notifications/mark_read/<int:id>', methods=['POST'])
+@bp.route('/notifications/mark_read/<int:id>', methods=['POST'])
 @require_csrf
 def mark_notification_read(id):
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     notif = Notification.query.get_or_404(id)
     if notif.user_id == session['student']:
         notif.is_read = True
         db.session.commit()
-    return redirect(url_for('notifications'))
+    return redirect(url_for('main.notifications'))
 
-@app.route('/notifications/mark_all_read', methods=['POST'])
+@bp.route('/notifications/mark_all_read', methods=['POST'])
 @require_csrf
 def mark_all_notifications_read():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     user_id = session['student']
     Notification.query.filter_by(user_id=user_id, is_read=False).update({'is_read': True})
     db.session.commit()
-    return redirect(url_for('notifications'))
+    return redirect(url_for('main.notifications'))
 
-@app.route('/like/<int:event_id>', methods=['POST'])
+@bp.route('/like/<int:event_id>', methods=['POST'])
 @require_csrf
 def like_event(event_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
 
     user_id = session.get('student') or session.get('admin')
     
@@ -1576,11 +1459,11 @@ def like_event(event_id):
     db.session.commit()
     return jsonify({'success': True, 'likes': EventLike.query.filter_by(event_id=event_id).count(), 'liked': not existing_like})
 
-@app.route('/register_event/<int:event_id>', methods=['POST'])
+@bp.route('/register_event/<int:event_id>', methods=['POST'])
 @require_csrf
 def register_event(event_id):
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     user_id = session['student']
     existing_reg = EventRegistration.query.filter_by(user_id=user_id, event_id=event_id).first()
@@ -1594,12 +1477,12 @@ def register_event(event_id):
         flash("Successfully registered for the event!")
     
     db.session.commit()
-    return redirect(request.referrer or url_for('home'))
+    return redirect(safe_redirect_target(url_for('main.home')))
 
-@app.route('/comment/<int:event_id>', methods=['POST'])
+@bp.route('/comment/<int:event_id>', methods=['POST'])
 def add_comment(event_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
     
     content = request.form.get('content')
     if content and content.strip():
@@ -1628,11 +1511,11 @@ def add_comment(event_id):
         
     return jsonify({'success': False})
 
-@app.route('/delete_comment/<int:comment_id>', methods=['POST'])
+@bp.route('/delete_comment/<int:comment_id>', methods=['POST'])
 @require_csrf
 def delete_comment(comment_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     comment = Comment.query.get_or_404(comment_id)
     current_user = session.get('student') or session.get('admin')
@@ -1642,12 +1525,12 @@ def delete_comment(comment_id):
         db.session.delete(comment)
         db.session.commit()
         
-    return redirect(request.referrer or url_for('home'))
+    return redirect(safe_redirect_target(url_for('main.home')))
 
-@app.route('/edit_comment/<int:comment_id>', methods=['POST'])
+@bp.route('/edit_comment/<int:comment_id>', methods=['POST'])
 def edit_comment(comment_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     comment = Comment.query.get_or_404(comment_id)
     current_user = session.get('student') or session.get('admin')
@@ -1658,25 +1541,25 @@ def edit_comment(comment_id):
             comment.content = new_content.strip()
             db.session.commit()
             
-    return redirect(request.referrer or url_for('home'))
+    return redirect(safe_redirect_target(url_for('main.home')))
 
 # =========================
 # LOST & FOUND
 # =========================
 
-@app.route('/lost_found')
+@bp.route('/lost_found')
 def lost_found():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     # Show active items first, resolved last
     items = LostItem.query.order_by(LostItem.is_resolved.asc(), LostItem.timestamp.desc()).all()
     return render_template("lost_found.html", items=items)
 
-@app.route('/add_lost_item', methods=['POST'])
+@bp.route('/add_lost_item', methods=['POST'])
 def add_lost_item():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     type = request.form.get('type') # Lost or Found
     item_name = request.form.get('item_name')
@@ -1689,10 +1572,10 @@ def add_lost_item():
     if image and image.filename != '':
         if allowed_media_file(image.filename):
             image_filename = f"{uuid.uuid4().hex}_{secure_filename(image.filename)}"
-            image.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
+            image.save(os.path.join(current_app.config['UPLOAD_FOLDER'], image_filename))
         else:
             flash("Invalid file type.")
-            return redirect(url_for('lost_found')) # Ensure redirect on error
+            return redirect(url_for('main.lost_found')) # Ensure redirect on error
 
     new_item = LostItem(
         type=type,
@@ -1706,9 +1589,9 @@ def add_lost_item():
     db.session.add(new_item)
     db.session.commit()
     flash("Item reported successfully.")
-    return redirect(url_for('lost_found'))
+    return redirect(url_for('main.lost_found'))
 
-@app.route('/resolve_item/<int:item_id>', methods=['POST'])
+@bp.route('/resolve_item/<int:item_id>', methods=['POST'])
 @require_csrf
 def resolve_item(item_id):
     item = LostItem.query.get_or_404(item_id)
@@ -1716,20 +1599,20 @@ def resolve_item(item_id):
         item.is_resolved = True
         db.session.commit()
         flash("Item marked as resolved/returned.")
-    return redirect(url_for('lost_found'))
+    return redirect(url_for('main.lost_found'))
 
-@app.route('/delete_lost_item/<int:item_id>', methods=['POST'])
+@bp.route('/delete_lost_item/<int:item_id>', methods=['POST'])
 @require_csrf
 def delete_lost_item(item_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     item = LostItem.query.get_or_404(item_id)
     current_user = session.get('student') or session.get('admin')
     
     if item.user_id == current_user or 'admin' in session:
         if item.image_file:
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], item.image_file)
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], item.image_file)
             if os.path.exists(file_path):
                 try:
                     os.remove(file_path)
@@ -1739,16 +1622,16 @@ def delete_lost_item(item_id):
         db.session.commit()
         flash("Lost/Found item deleted successfully.")
         
-    return redirect(url_for('lost_found'))
+    return redirect(url_for('main.lost_found'))
 
 # =========================
 # ANONYMOUS DOUBTS
 # =========================
 
-@app.route('/doubts')
+@bp.route('/doubts')
 def doubts():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     doubts_list = AnonymousDoubt.query.order_by(AnonymousDoubt.timestamp.desc()).all()
     
@@ -1771,10 +1654,10 @@ def doubts():
 
     return render_template("doubts.html", doubts=doubts_list)
 
-@app.route('/add_doubt', methods=['POST'])
+@bp.route('/add_doubt', methods=['POST'])
 def add_doubt():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     content = request.form.get('content')
     file = request.files.get('file')
@@ -1783,22 +1666,22 @@ def add_doubt():
     if file and file.filename != '':
         if allowed_file(file.filename):
             file_filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_filename))
+            file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], file_filename))
         else:
             flash("Invalid file type attached.") # CRITICAL FIX: Ensure redirect on invalid file type.
-            return redirect(url_for('doubts')) # Ensure redirect on error
+            return redirect(url_for('main.doubts')) # Ensure redirect on error
             
     if content and content.strip():
         new_doubt = AnonymousDoubt(content=content.strip(), user_id=session['student'], file_path=file_filename)
         db.session.add(new_doubt)
         db.session.commit()
         flash("Your anonymous doubt has been posted.")
-    return redirect(url_for('doubts'))
+    return redirect(url_for('main.doubts'))
 
-@app.route('/reply_doubt/<int:doubt_id>', methods=['POST'])
+@bp.route('/reply_doubt/<int:doubt_id>', methods=['POST'])
 def reply_doubt(doubt_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     content = request.form.get('content')
     user_id = session.get('student') or session.get('admin')
@@ -1816,19 +1699,19 @@ def reply_doubt(doubt_id):
             
         db.session.commit()
         flash("Reply added anonymously.")
-    return redirect(url_for('doubts'))
+    return redirect(url_for('main.doubts'))
 
-@app.route('/delete_doubt/<int:doubt_id>', methods=['POST'])
+@bp.route('/delete_doubt/<int:doubt_id>', methods=['POST'])
 @require_csrf
 def delete_doubt(doubt_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     doubt = AnonymousDoubt.query.get_or_404(doubt_id)
     # Admin or the student who posted it can delete it
     if 'admin' in session or doubt.user_id == session.get('student'):
         if doubt.file_path:
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], doubt.file_path)
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doubt.file_path)
             if os.path.exists(file_path):
                 try:
                     os.remove(file_path)
@@ -1837,29 +1720,29 @@ def delete_doubt(doubt_id):
         db.session.delete(doubt)
         db.session.commit()
         flash("Doubt deleted.")
-    return redirect(url_for('doubts'))
+    return redirect(url_for('main.doubts'))
 
-@app.route('/delete_doubt_reply/<int:reply_id>', methods=['POST'])
+@bp.route('/delete_doubt_reply/<int:reply_id>', methods=['POST'])
 @require_csrf
 def delete_doubt_reply(reply_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     reply = DoubtReply.query.get_or_404(reply_id)
     if 'admin' in session or reply.user_id == session.get('student'):
         db.session.delete(reply)
         db.session.commit()
         flash("Reply deleted.")
-    return redirect(url_for('doubts'))
+    return redirect(url_for('main.doubts'))
 
 # =========================
 # CAMPUS POLLS
 # =========================
 
-@app.route('/polls')
+@bp.route('/polls')
 def polls():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     user_id = session.get('student') or session.get('admin')
     polls_list = Poll.query.order_by(Poll.timestamp.desc()).all()
@@ -1888,11 +1771,11 @@ def polls():
             
     return render_template("polls.html", polls=polls_list)
 
-@app.route('/create_poll', methods=['GET', 'POST'])
+@bp.route('/create_poll', methods=['GET', 'POST'])
 def create_poll():
     # Only admins or logged-in students can create
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     if request.method == 'POST':
         question = request.form.get('question')
@@ -1913,17 +1796,17 @@ def create_poll():
             db.session.commit()
             
             flash("Poll created successfully!")
-            return redirect(url_for('polls'))
+            return redirect(url_for('main.polls'))
         else:
             flash("Poll must have a question and at least 2 options.")
             
     return render_template("create_poll.html")
 
-@app.route('/vote/<int:poll_id>/<int:option_id>', methods=['POST'])
+@bp.route('/vote/<int:poll_id>/<int:option_id>', methods=['POST'])
 @require_csrf
 def vote(poll_id, option_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     user_id = session.get('student') or session.get('admin')
 
@@ -1934,7 +1817,7 @@ def vote(poll_id, option_id):
     # Check if already voted
     if PollVote.query.filter_by(poll_id=poll_id, user_id=user_id).first():
         flash("You have already voted on this poll.")
-        return redirect(url_for('polls'))
+        return redirect(url_for('main.polls'))
         
     # Record vote
     vote = PollVote(user_id=user_id, poll_id=poll_id, option_id=option_id)
@@ -1957,13 +1840,13 @@ def vote(poll_id, option_id):
         db.session.rollback()
         flash("You have already voted on this poll.")
     
-    return redirect(url_for('polls'))
+    return redirect(url_for('main.polls'))
 
-@app.route('/delete_poll/<int:poll_id>', methods=['POST'])
+@bp.route('/delete_poll/<int:poll_id>', methods=['POST'])
 @require_csrf
 def delete_poll(poll_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     poll = Poll.query.get_or_404(poll_id)
     current_user = session.get('student') or session.get('admin')
@@ -1975,29 +1858,28 @@ def delete_poll(poll_id):
     else:
         flash("You are not authorized to delete this poll.")
         
-    return redirect(url_for('polls'))
+    return redirect(url_for('main.polls'))
 
 # =========================
 # ADMIN LOGIN
 # =========================
 
-@app.route('/admin')
+@bp.route('/admin')
 def admin_base():
     if 'admin' in session:
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('main.admin_dashboard'))
     if 'student' in session:
-        return redirect(url_for('home'))
-    return redirect(url_for('admin_login'))
+        return redirect(url_for('main.home'))
+    return redirect(url_for('main.admin_login'))
 
-@app.route('/admin/login', methods=['GET','POST'])
-@require_csrf
+@bp.route('/admin/login', methods=['GET','POST'])
 def admin_login():
     if 'admin' in session:
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('main.admin_dashboard'))
     if 'student' in session:
-        return redirect(url_for('home'))
+        return redirect(url_for('main.home'))
 
-    if request.method == "POST":
+    if request.method == 'POST':
         admin_id = request.form.get('admin_id', '').strip()
         password = request.form.get('password', '')
         rate_key = login_rate_limit_key(f'admin:{admin_id}')
@@ -2012,7 +1894,7 @@ def admin_login():
             clear_login_rate_limit(rate_key)
             session.clear()
             session['admin'] = admin_id
-            return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('main.admin_dashboard'))
         else:
             record_failed_login(rate_key)
             flash("Invalid Admin Login")
@@ -2024,15 +1906,15 @@ def admin_login():
 # ADMIN PROFILE
 # =========================
 
-@app.route('/admin/profile')
+@bp.route('/admin/profile')
 def admin_profile():
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     admin = Admin.query.filter_by(admin_id=session['admin']).first()
     if not admin:
         session.clear()
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     events = Event.query.filter_by(is_admin=True).order_by(Event.id.desc()).all()
 
@@ -2043,11 +1925,11 @@ def admin_profile():
 # ADMIN DASHBOARD
 # =========================
 
-@app.route('/admin/dashboard')
+@bp.route('/admin/dashboard')
 def admin_dashboard():
 
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     student_count = Student.query.count()
     event_count = Event.query.count()
@@ -2093,10 +1975,10 @@ def admin_dashboard():
                            student_q=student_q)
 
 
-@app.route('/admin/notifications')
+@bp.route('/admin/notifications')
 def admin_notifications():
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     notifications = AdminNotification.query.order_by(AdminNotification.timestamp.desc()).all()
     AdminNotification.query.filter_by(is_read=False).update({'is_read': True}, synchronize_session=False)
@@ -2104,10 +1986,10 @@ def admin_notifications():
     return render_template('admin_notifications.html', notifications=notifications)
 
 
-@app.route('/admin/recovery-requests')
+@bp.route('/admin/recovery-requests')
 def admin_recovery_requests():
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     recovery_requests = RecoveryRequest.query.order_by(
         (RecoveryRequest.status == 'Pending').desc(), RecoveryRequest.created_at.desc()
@@ -2115,47 +1997,51 @@ def admin_recovery_requests():
     return render_template('admin_recovery_requests.html', recovery_requests=recovery_requests)
 
 
-@app.route('/admin/recovery-requests/<int:request_id>/issue-link', methods=['POST'])
+@bp.route('/admin/recovery-requests/<int:request_id>/issue-link', methods=['POST'])
 @require_csrf
 def issue_admin_recovery_link(request_id):
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     recovery_request = RecoveryRequest.query.get_or_404(request_id)
     student = Student.query.filter_by(student_id=recovery_request.student_id).first()
-    if not student or not student.email:
-        flash('No registered email is available for this student. Verify identity and update the account email before issuing a reset link.', 'warning')
-        return redirect(url_for('admin_recovery_requests'))
+    if not student:
+        flash('No registered student account was found for this recovery request.', 'warning')
+        return redirect(url_for('main.admin_recovery_requests'))
 
-    token = password_reset_serializer.dumps({
-        'student_id': student.student_id,
-        'password_hash': student.password,
-    })
-    reset_url = public_url_for('reset_password', token=token)
-    recovery_request.status = 'Link issued'
+    temporary_password = f"AU{secrets.token_urlsafe(9)}9"
+    student.password = generate_password_hash(temporary_password)
+    recovery_request.status = 'Temporary password issued'
     recovery_request.reviewed_by = session['admin']
     recovery_request.reviewed_at = datetime.now()
     db.session.commit()
 
     emailed = False
-    try:
-        mail.send(Message(
-            subject='AU Daily password reset',
-            recipients=[student.email],
-            html=render_template('reset_password_email.html', reset_url=reset_url, name=student.name),
-        ))
-        emailed = True
-    except Exception:
-        app.logger.exception('Unable to send administrator-issued password reset email')
+    recipient_email = (recovery_request.recovery_email or student.email or '').strip()
+    if recipient_email:
+        try:
+            mail.send(Message(
+                subject='AU Daily temporary password',
+                recipients=[recipient_email],
+                html=render_template(
+                    'admin_temp_password_email.html',
+                    name=student.name,
+                    temporary_password=temporary_password,
+                ),
+            ))
+            emailed = True
+        except Exception:
+            app.logger.exception('Unable to send administrator-issued temporary password email')
 
     return render_template('admin_recovery_link.html', recovery_request=recovery_request,
-                           student=student, reset_url=reset_url, emailed=emailed)
+                           student=student, temporary_password=temporary_password,
+                           recipient_email=recipient_email, emailed=emailed)
 
 
-@app.route('/admin/feedback')
+@bp.route('/admin/feedback')
 def admin_feedback():
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
         
     # Fetch all feedback and link it to the student who submitted it
     feedbacks = db.session.query(Feedback, Student.name, Student.department)\
@@ -2165,27 +2051,27 @@ def admin_feedback():
     return render_template("admin_feedback.html", feedbacks=feedbacks)
 
 
-@app.route('/admin/feedback/<int:id>/reply', methods=['POST'])
+@bp.route('/admin/feedback/<int:id>/reply', methods=['POST'])
 def reply_to_feedback(id):
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     reply = request.form.get('reply', '').strip()
     feedback = Feedback.query.get_or_404(id)
     if not reply:
         flash('Please write a reply before sending it.', 'warning')
-        return redirect(url_for('admin_feedback'))
+        return redirect(url_for('main.admin_feedback'))
     feedback.admin_response = reply
     feedback.responded_at = datetime.now()
     db.session.commit()
     notify_student_of_admin_reply(feedback.user_id, reply, 'AU Daily: reply to your feedback', 'feedback')
     flash('Reply sent to the student.')
-    return redirect(url_for('admin_feedback'))
+    return redirect(url_for('main.admin_feedback'))
 
-@app.route('/admin/reports')
+@bp.route('/admin/reports')
 def admin_reports():
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
         
     status = request.args.get('status', '').strip()
     report_type = request.args.get('type', '').strip()
@@ -2201,83 +2087,86 @@ def admin_reports():
     return render_template("admin_reports.html", reports=reports, current_status=status, current_type=report_type)
 
 
-@app.route('/admin/reports/<int:id>/reply', methods=['POST'])
+@bp.route('/admin/reports/<int:id>/reply', methods=['POST'])
+@require_csrf
 def reply_to_report(id):
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     reply = request.form.get('reply', '').strip()
     report = Report.query.get_or_404(id)
     if not report.user_id:
         flash('Anonymous reports cannot receive an admin reply.', 'warning')
-        return redirect(url_for('admin_reports'))
+        return redirect(url_for('main.admin_reports'))
     if not reply:
         flash('Please write a reply before sending it.', 'warning')
-        return redirect(url_for('admin_reports'))
+        return redirect(url_for('main.admin_reports'))
     report.admin_response = reply
     report.responded_at = datetime.now()
     db.session.commit()
     notify_student_of_admin_reply(report.user_id, reply, 'AU Daily: reply to your report', 'report')
     flash('Reply sent to the student.')
-    return redirect(url_for('admin_reports'))
+    return redirect(url_for('main.admin_reports'))
 
 
-@app.route('/admin/reports/<int:id>/status', methods=['POST'])
+@bp.route('/admin/reports/<int:id>/status', methods=['POST'])
+@require_csrf
 def update_report_status(id):
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     status = request.form.get('status', '')
     if status not in {'Pending', 'In Progress', 'Resolved'}:
         flash('Invalid report status.', 'warning')
-        return redirect(url_for('admin_reports'))
+        return redirect(url_for('main.admin_reports'))
     report = Report.query.get_or_404(id)
     report.status = status
     db.session.commit()
     flash('Report status updated.')
-    return redirect(url_for('admin_reports'))
+    return redirect(url_for('main.admin_reports'))
 
 
-@app.route('/admin/reports/<int:id>/action', methods=['POST'])
+@bp.route('/admin/reports/<int:id>/action', methods=['POST'])
+@require_csrf
 def action_report(id):
     """Delete a reported item only when its type is known to the application."""
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     report = Report.query.get_or_404(id)
     if request.form.get('action') != 'delete_post':
         flash('Unsupported report action.', 'warning')
-        return redirect(url_for('admin_reports'))
+        return redirect(url_for('main.admin_reports'))
 
     models = {'Event': Event, 'NewsPost': NewsPost, 'JobPost': JobPost}
     target_model = models.get(report.item_type)
     target = target_model.query.get(report.item_id) if target_model and report.item_id else None
     if not target:
         flash('The reported item is no longer available.', 'warning')
-        return redirect(url_for('admin_reports'))
+        return redirect(url_for('main.admin_reports'))
 
     db.session.delete(target)
     report.status = 'Resolved'
     db.session.commit()
     flash('Reported item deleted and report resolved.')
-    return redirect(url_for('admin_reports'))
+    return redirect(url_for('main.admin_reports'))
 
-@app.route('/admin/resolve_report/<int:report_id>', methods=['POST'])
+@bp.route('/admin/resolve_report/<int:report_id>', methods=['POST'])
 @require_csrf
 def resolve_report(report_id):
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
         
     report = Report.query.get_or_404(report_id)
     report.status = 'Resolved'
     db.session.commit()
     flash("Report marked as resolved.")
-    return redirect(url_for('admin_reports'))
+    return redirect(url_for('main.admin_reports'))
 
-@app.route('/admin/export_students')
+@bp.route('/admin/export_students')
 def export_students():
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     students = Student.query.all()
     
@@ -2306,28 +2195,28 @@ def export_students():
         headers={"Content-Disposition": "attachment;filename=registered_students.csv"}
     )
 
-@app.route('/admin/upload_allowed_students', methods=['POST'])
+@bp.route('/admin/upload_allowed_students', methods=['POST'])
 def upload_allowed_students():
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     if 'file' not in request.files:
         flash('No file part')
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('main.admin_dashboard'))
     
     file = request.files['file']
     if file.filename == '':
         flash('No selected file')
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('main.admin_dashboard'))
 
     if file and file.filename.endswith('.csv'):
         # Save the file to root path, overwriting existing
-        csv_path = os.path.join(app.root_path, 'allowed_students.csv')
+        csv_path = os.path.join(current_app.root_path, 'allowed_students.csv')
         try:
             file.save(csv_path)
         except Exception as e:
-            flash(f"Error saving file: {e}")
-            return redirect(url_for('admin_dashboard'))
+            flash(f"Error saving file: {e}") # This path is less likely
+            return redirect(url_for('main.admin_dashboard'))
         
         # Run update logic (same as update_allowed_ids.py)
         allowed_ids = []
@@ -2342,7 +2231,7 @@ def upload_allowed_students():
             with open(csv_path, 'rb') as f:
                 if f.read(2) == b'PK':
                     flash("Error: The uploaded file appears to be an Excel .xlsx file saved with .csv extension. Please save as CSV (Comma delimited).")
-                    return redirect(url_for('admin_dashboard'))
+                    return redirect(url_for('main.admin_dashboard'))
         except OSError:
             pass
 
@@ -2385,7 +2274,7 @@ def upload_allowed_students():
                 flash(read_error)
             else:
                 flash("Error: Could not read IDs from CSV. The file might be empty or have an unsupported encoding.")
-            return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('main.admin_dashboard'))
 
         added_count = 0
         # Deduplicate the list to avoid IntegrityErrors in the same session
@@ -2401,12 +2290,12 @@ def upload_allowed_students():
     else:
         flash('Invalid file type. Please upload a CSV file.')
 
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('main.admin_dashboard'))
 
-@app.route('/admin/allowed_students')
+@bp.route('/admin/allowed_students')
 def view_allowed_students():
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
     
     page = request.args.get('page', 1, type=int)
     search_q = request.args.get('q', '')
@@ -2420,10 +2309,10 @@ def view_allowed_students():
     
     return render_template("allowed_students_list.html", allowed_students=allowed_students, pagination=pagination, search_q=search_q)
 
-@app.route('/admin/add_allowed_student', methods=['POST'])
+@bp.route('/admin/add_allowed_student', methods=['POST'])
 def add_allowed_student():
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
     
     student_id = request.form.get('student_id')
     if student_id:
@@ -2433,7 +2322,7 @@ def add_allowed_student():
             db.session.commit()
             
             # Try to append to CSV for persistence
-            csv_path = os.path.join(app.root_path, 'allowed_students.csv')
+            csv_path = os.path.join(current_app.root_path, 'allowed_students.csv')
             if os.path.exists(csv_path):
                 try:
                     with open(csv_path, 'a', newline='') as f:
@@ -2445,13 +2334,13 @@ def add_allowed_student():
         else:
             flash(f"Student ID {student_id} is already allowed.")
     
-    return redirect(url_for('view_allowed_students'))
+    return redirect(url_for('main.view_allowed_students'))
 
-@app.route('/admin/delete_allowed_student/<int:id>', methods=['POST'])
+@bp.route('/admin/delete_allowed_student/<int:id>', methods=['POST'])
 @require_csrf
 def delete_allowed_student(id):
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
     
     student = AllowedStudent.query.get_or_404(id)
     s_id = student.student_id
@@ -2459,7 +2348,7 @@ def delete_allowed_student(id):
     db.session.commit()
     
     # Attempt to remove from CSV to maintain consistency
-    csv_path = os.path.join(app.root_path, 'allowed_students.csv')
+    csv_path = os.path.join(current_app.root_path, 'allowed_students.csv')
     if os.path.exists(csv_path):
         try:
             lines = []
@@ -2482,18 +2371,18 @@ def delete_allowed_student(id):
             pass
             
     flash(f"ID {s_id} removed from allowed list.")
-    return redirect(url_for('view_allowed_students'))
+    return redirect(url_for('main.view_allowed_students'))
 
-@app.route('/admin/delete_allowed_students_bulk', methods=['POST'])
+@bp.route('/admin/delete_allowed_students_bulk', methods=['POST'])
 @require_csrf
 def delete_allowed_students_bulk():
     if 'admin' not in session:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
     
     ids_to_delete = request.form.getlist('student_ids')
     if not ids_to_delete:
         flash("No students selected for deletion.")
-        return redirect(url_for('view_allowed_students'))
+        return redirect(url_for('main.view_allowed_students'))
     
     # Fetch objects to get the actual student_id strings (for CSV removal)
     students = AllowedStudent.query.filter(AllowedStudent.id.in_(ids_to_delete)).all()
@@ -2505,7 +2394,7 @@ def delete_allowed_students_bulk():
     db.session.commit()
     
     # Update CSV
-    csv_path = os.path.join(app.root_path, 'allowed_students.csv')
+    csv_path = os.path.join(current_app.root_path, 'allowed_students.csv')
     if os.path.exists(csv_path) and student_id_strings:
         try:
             lines = []
@@ -2529,17 +2418,17 @@ def delete_allowed_students_bulk():
             pass
             
     flash(f"{len(students)} allowed IDs removed.")
-    return redirect(url_for('view_allowed_students'))
+    return redirect(url_for('main.view_allowed_students'))
 
 # =========================
 # ADD EVENT
 # =========================
 
-@app.route('/add_event', methods=['GET','POST'])
+@bp.route('/add_event', methods=['GET','POST'])
 def add_event():
 
     if 'admin' not in session and 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     if request.method == "POST":
 
@@ -2555,10 +2444,10 @@ def add_event():
             image_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
             if allowed_media_file(image.filename) and image.filename.rsplit('.', 1)[1].lower() in image_extensions:
                 image_filename = f"{uuid.uuid4().hex}_{secure_filename(image.filename)}"
-                image.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
+                image.save(os.path.join(current_app.config['UPLOAD_FOLDER'], image_filename))
             else:
                 flash("Invalid file type. Please upload an image or video.")
-                return redirect(url_for('add_event')) # Ensure redirect on error
+                return redirect(url_for('main.add_event')) # Ensure redirect on error
 
         is_admin_post = False
         posted_by_name = "Unknown"
@@ -2600,16 +2489,16 @@ def add_event():
         db.session.commit()
 
         if 'admin' in session:
-            return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('main.admin_dashboard'))
         else:
-            return redirect(url_for('home'))
+            return redirect(url_for('main.home'))
 
     return render_template("add_event.html", departments=DEPARTMENTS)
 
-@app.route('/edit_event/<int:event_id>', methods=['GET', 'POST'])
+@bp.route('/edit_event/<int:event_id>', methods=['GET', 'POST'])
 def edit_event(event_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     event = Event.query.get_or_404(event_id)
     
@@ -2619,7 +2508,7 @@ def edit_event(event_id):
         # Users can only edit events they posted (check by ID)
         if not student or event.user_id != student.student_id:
             flash("You are not authorized to edit this event.")
-            return redirect(url_for('home'))
+            return redirect(url_for('main.home'))
     
     if request.method == 'POST':
         event.title = request.form['title']
@@ -2631,7 +2520,7 @@ def edit_event(event_id):
         if image and image.filename != '':
             if allowed_media_file(image.filename):
                 filename = f"{uuid.uuid4().hex}_{secure_filename(image.filename)}"
-                image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                image.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
                 event.image_file = filename
             else:
                 flash("Invalid file type.")
@@ -2641,16 +2530,16 @@ def edit_event(event_id):
         flash("Event updated successfully!")
         
         if 'admin' in session:
-            return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('main.admin_dashboard'))
         else:
-            return redirect(url_for('student_profile'))
+            return redirect(url_for('main.student_profile'))
 
     return render_template("edit_event.html", event=event, departments=DEPARTMENTS)
 
-@app.route('/edit_event_description/<int:event_id>', methods=['POST'])
+@bp.route('/edit_event_description/<int:event_id>', methods=['POST'])
 def edit_event_description(event_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     event = Event.query.get_or_404(event_id)
     
@@ -2659,25 +2548,25 @@ def edit_event_description(event_id):
         student = Student.query.filter_by(student_id=session['student']).first()
         if not student or event.user_id != student.student_id:
             flash("You are not authorized to edit this event.")
-            return redirect(url_for('home'))
+            return redirect(url_for('main.home'))
             
     new_desc = request.form.get('description')
     if new_desc and new_desc.strip():
         event.description = new_desc.strip()
         db.session.commit()
         
-    return redirect(request.referrer or url_for('home'))
+    return redirect(safe_redirect_target(url_for('main.home')))
 
 # =========================
 # DELETE EVENT
 # =========================
 
-@app.route('/delete_event/<int:id>', methods=['POST'])
+@bp.route('/delete_event/<int:id>', methods=['POST'])
 @require_csrf
 def delete_event(id):
 
     if 'admin' not in session and 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     event = Event.query.get_or_404(id)
 
@@ -2686,207 +2575,17 @@ def delete_event(id):
         # Users can only delete events they posted (check by ID)
         if event.user_id != session['student']:
             flash("You are not authorized to delete this event.")
-            return redirect(url_for('home'))
+            return redirect(url_for('main.home'))
 
     remove_uploaded_media(event.image_file)
     db.session.delete(event)
     db.session.commit()
     flash("Event deleted successfully.")
 
-    return redirect(request.referrer or url_for('home'))
+    return redirect(safe_redirect_target(url_for('main.home')))
 
 
-# =========================
-# STUDENT REGISTER
-# =========================
-
-@app.route('/student/register', methods=['GET','POST'])
-@require_csrf
-def student_register():
-
-    if request.method == "POST":
-
-        student_id = request.form['student_id'].strip()
-
-        # 1. Check if the student_id is in the allowed list
-        if not AllowedStudent.query.filter_by(student_id=student_id).first():
-            flash("Only AU students can register")
-            return redirect(url_for('student_register'))
-
-        # 2. Check if this student_id is already registered
-        if Student.query.filter_by(student_id=student_id).first():
-            flash("This registration number has already been registered.")
-            return redirect(url_for('student_register'))
-
-        name = request.form.get('name')
-        department = request.form.get('department')
-        email = request.form.get('email', '').strip()
-        phone = request.form.get('phone')
-        
-        if not email or not phone:
-            flash("Email and Phone number are required.")
-            return redirect(url_for('student_register'))
-
-        # Safely convert graduation_year to integer
-        grad_year_str = request.form.get('graduation_year')
-        graduation_year = None
-        if grad_year_str and grad_year_str.isdigit():
-            graduation_year = int(grad_year_str)
-
-        if Student.query.filter_by(email=email).first():
-            flash("This email address is already registered.")
-            return redirect(url_for('student_register'))
-
-        raw_password = request.form.get('password')
-        if request.form.get('privacy_consent') != 'yes':
-            flash("Please accept the Privacy Policy to create an account.")
-            return redirect(url_for('student_register'))
-        if not valid_password(raw_password):
-            flash("Password must be at least 10 characters and include both letters and numbers.")
-            return redirect(url_for('student_register'))
-        if not name or not name.strip() or department not in DEPARTMENTS or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
-            flash("Enter a valid name, department, and email address.")
-            return redirect(url_for('student_register'))
-        phone = normalize_indian_mobile(phone)
-        if not phone:
-            flash("Enter a valid 10-digit Indian mobile number.")
-            return redirect(url_for('student_register'))
-        password = generate_password_hash(raw_password)
-
-        # Handle Profile Pic
-        profile_pic = request.files.get('profile_pic')
-        pic_filename = None
-        if profile_pic and profile_pic.filename != '':
-            if allowed_media_file(profile_pic.filename) and profile_pic.filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS:
-                pic_filename = f"{uuid.uuid4().hex}_{secure_filename(profile_pic.filename)}"
-                profile_pic.save(os.path.join(app.config['UPLOAD_FOLDER'], pic_filename))
-
-        student = Student(
-            student_id=student_id,
-            name=name,
-            department=department,
-            graduation_year=graduation_year,
-            email=email,
-            phone=phone,
-            password=password,
-            profile_pic=pic_filename
-        )
-
-        db.session.add(student)
-        db.session.commit()
-
-        flash("Registration successful! Please login.")
-        return redirect(url_for('student_login'))
-
-    return render_template("student_register.html", departments=DEPARTMENTS)
-
-
-# =========================
-# STUDENT LOGIN
-# =========================
-
-@app.route('/student/login', methods=['GET','POST'])
-@require_csrf
-def student_login():
-    if 'admin' in session:
-        return redirect(url_for('admin_dashboard'))
-    if 'student' in session:
-        return redirect(url_for('home'))
-
-    if request.method == "POST":
-        identifier = request.form.get('student_id', '').strip()
-        password = request.form.get('password', '')
-        rate_key = login_rate_limit_key(f'student:{identifier}')
-
-        if login_is_rate_limited(rate_key):
-            flash('Too many sign-in attempts. Please wait 15 minutes and try again.')
-            return render_template("student_login.html"), 429
-
-        student = Student.query.filter(
-            or_(Student.student_id == identifier, func.lower(Student.email) == identifier.lower())
-        ).first()
-
-        if student and password and verify_password_and_upgrade(student, password):
-            clear_login_rate_limit(rate_key)
-            session.clear()
-            session['student'] = student.student_id
-            return redirect(url_for('home'))
-        else:
-            record_failed_login(rate_key)
-            flash("Invalid ID/Email or Password")
-
-    return render_template("student_login.html")
-
-
-@app.route('/student/admin-recovery', methods=['GET', 'POST'])
-@require_csrf
-def request_admin_recovery():
-    if request.method == 'POST':
-        ip_address = request.remote_addr or 'unknown'
-        recovery_rate_key = f'admin-recovery:{ip_address}'
-        if rate_limit_reached(recovery_rate_key, limit=1, window=timedelta(minutes=5)):
-            flash('Please wait five minutes before submitting another recovery request.', 'warning')
-            return redirect(url_for('request_admin_recovery'))
-
-        student_id = request.form.get('student_id', '').strip()
-        contact_note = request.form.get('contact_note', '').strip()
-        if not student_id:
-            flash('Enter your student ID to request administrator assistance.', 'warning')
-            return redirect(url_for('request_admin_recovery'))
-
-        pending_request = RecoveryRequest.query.filter_by(student_id=student_id, status='Pending').first()
-        if pending_request:
-            pending_request.contact_note = contact_note[:255]
-            pending_request.created_at = datetime.now()
-        else:
-            db.session.add(RecoveryRequest(student_id=student_id, contact_note=contact_note[:255]))
-            create_admin_notification(
-                'recovery',
-                f'Password recovery request for student {student_id}.',
-                'admin_recovery_requests',
-            )
-        db.session.commit()
-        record_rate_limit_attempt(recovery_rate_key, window=timedelta(minutes=5))
-        flash('Your request was sent. Contact the administrator through your university’s official channel to verify your identity.', 'success')
-        return redirect(url_for('student_login'))
-
-    return render_template('admin_recovery.html')
-
-
-@app.route('/student/forgot-password', methods=['GET', 'POST'])
-@require_csrf
-def forgot_password():
-    if request.method == 'POST':
-        if password_reset_is_rate_limited():
-            flash('Too many reset requests. Please wait and try again.', 'warning')
-            return redirect(url_for('forgot_password'))
-        email = request.form.get('email', '').strip().lower()
-        student = Student.query.filter(func.lower(Student.email) == email).first() if email else None
-
-        # Keep the response identical whether or not an account exists.
-        flash('If an account matches those details, a password reset link has been sent.')
-        if student and student.email:
-            token = password_reset_serializer.dumps({
-                'student_id': student.student_id,
-                'password_hash': student.password,
-            })
-            reset_url = public_url_for('reset_password', token=token)
-            try:
-                message = Message(
-                    subject='AU Daily password reset',
-                    recipients=[student.email],
-                    html=render_template('reset_password_email.html', reset_url=reset_url, name=student.name),
-                )
-                mail.send(message)
-            except Exception:
-                app.logger.exception('Unable to send password reset email')
-                flash('The reset email could not be sent. Please contact the administrator.', 'warning')
-        return redirect(url_for('student_login'))
-
-    return render_template('forgot_password.html')
-
-
-@app.route('/student/phone-recovery', methods=['GET', 'POST'])
+@bp.route('/student/phone-recovery', methods=['GET', 'POST'])
 @require_csrf
 def phone_recovery():
     if request.method == 'POST':
@@ -2897,10 +2596,10 @@ def phone_recovery():
 
         if not student or not mobile or mobile != registered_mobile:
             flash('The Student ID and registered mobile number do not match our records.', 'warning')
-            return redirect(url_for('phone_recovery'))
-        if not FAST2SMS_API_KEY or not FAST2SMS_OTP_ID:
+            return redirect(url_for('main.phone_recovery'))
+        if not current_app.config.get('FAST2SMS_API_KEY') or not current_app.config.get('FAST2SMS_OTP_ID'):
             flash('Phone recovery is temporarily unavailable. Please contact the administrator.', 'warning')
-            return redirect(url_for('phone_recovery'))
+            return redirect(url_for('main.phone_recovery'))
 
         now = datetime.now()
         attempt = PhoneRecoveryAttempt.query.filter_by(student_id=student.student_id).first()
@@ -2909,22 +2608,22 @@ def phone_recovery():
             db.session.add(attempt)
         if attempt.locked_until and attempt.locked_until > now:
             flash('Too many incorrect codes. Please wait 15 minutes before trying again.', 'warning')
-            return redirect(url_for('phone_recovery'))
+            return redirect(url_for('main.phone_recovery'))
         if attempt.last_sent_at and now - attempt.last_sent_at < timedelta(minutes=1):
             flash('Please wait one minute before requesting another OTP.', 'warning')
-            return redirect(url_for('phone_recovery'))
+            return redirect(url_for('main.phone_recovery'))
         if not attempt.window_started_at or now - attempt.window_started_at >= timedelta(minutes=15):
             attempt.window_started_at, attempt.send_count, attempt.failed_verifications = now, 0, 0
         if attempt.send_count >= 3:
             attempt.locked_until = now + timedelta(minutes=15)
             db.session.commit()
             flash('Too many OTP requests. Please wait 15 minutes before trying again.', 'warning')
-            return redirect(url_for('phone_recovery'))
+            return redirect(url_for('main.phone_recovery'))
 
-        result = fast2sms_otp_request('send', {'otp_id': FAST2SMS_OTP_ID, 'mobile': mobile})
+        result = fast2sms_otp_request('send', {'otp_id': current_app.config['FAST2SMS_OTP_ID'], 'mobile': mobile})
         if not result.get('return'):
             flash('We could not send an OTP right now. Please try again later.', 'warning')
-            return redirect(url_for('phone_recovery'))
+            return redirect(url_for('main.phone_recovery'))
         attempt.last_sent_at = now
         attempt.send_count += 1
         db.session.commit()
@@ -2932,19 +2631,19 @@ def phone_recovery():
         session['phone_recovery_mobile'] = mobile
         session.pop('phone_recovery_verified', None)
         flash('OTP sent to your registered mobile number.')
-        return redirect(url_for('verify_phone_recovery'))
+        return redirect(url_for('main.verify_phone_recovery'))
 
-    return render_template('phone_recovery.html', configured=bool(FAST2SMS_API_KEY and FAST2SMS_OTP_ID))
+    return render_template('phone_recovery.html', configured=bool(current_app.config.get('FAST2SMS_API_KEY') and current_app.config.get('FAST2SMS_OTP_ID')))
 
 
-@app.route('/student/phone-recovery/verify', methods=['GET', 'POST'])
+@bp.route('/student/phone-recovery/verify', methods=['GET', 'POST'])
 @require_csrf
 def verify_phone_recovery():
     student_id = session.get('phone_recovery_student_id')
     mobile = session.get('phone_recovery_mobile')
     if not student_id or not mobile:
-        flash('Start phone recovery again to receive a new OTP.', 'warning')
-        return redirect(url_for('phone_recovery'))
+        flash('Start phone recovery again to receive a new OTP.', 'warning') # This path is less likely
+        return redirect(url_for('main.phone_recovery'))
 
     if request.method == 'POST':
         otp = re.sub(r'\D', '', request.form.get('otp', ''))
@@ -2952,39 +2651,39 @@ def verify_phone_recovery():
         now = datetime.now()
         if not attempt or (attempt.locked_until and attempt.locked_until > now):
             flash('This recovery request is locked or expired. Start again later.', 'warning')
-            return redirect(url_for('phone_recovery'))
+            return redirect(url_for('main.phone_recovery'))
         if len(otp) < 4:
             flash('Enter the OTP sent to your mobile number.', 'warning')
-            return redirect(url_for('verify_phone_recovery'))
+            return redirect(url_for('main.verify_phone_recovery'))
         result = fast2sms_otp_request('verify', {'mobile': mobile, 'otp': otp})
         if not result.get('return'):
             attempt.failed_verifications += 1
             if attempt.failed_verifications >= 5:
                 attempt.locked_until = now + timedelta(minutes=15)
             db.session.commit()
-            flash('Invalid OTP. Please try again.', 'warning')
-            return redirect(url_for('verify_phone_recovery'))
+            flash('Invalid OTP. Please try again.', 'warning') # This path is less likely
+            return redirect(url_for('main.verify_phone_recovery'))
         attempt.failed_verifications = 0
         db.session.commit()
         session['phone_recovery_verified'] = True
-        return redirect(url_for('reset_password_by_phone'))
+        return redirect(url_for('main.reset_password_by_phone'))
 
     return render_template('verify_phone_otp.html', mobile=f'******{mobile[-4:]}')
 
 
-@app.route('/student/phone-recovery/reset', methods=['GET', 'POST'])
+@bp.route('/student/phone-recovery/reset', methods=['GET', 'POST'])
 @require_csrf
 def reset_password_by_phone():
     student_id = session.get('phone_recovery_student_id')
     if not student_id or not session.get('phone_recovery_verified'):
         flash('Verify your phone OTP before resetting the password.', 'warning')
-        return redirect(url_for('phone_recovery'))
+        return redirect(url_for('main.phone_recovery'))
     student = Student.query.filter_by(student_id=student_id).first()
     if not student:
         session.pop('phone_recovery_student_id', None)
         session.pop('phone_recovery_mobile', None)
         session.pop('phone_recovery_verified', None)
-        return redirect(url_for('phone_recovery'))
+        return redirect(url_for('main.phone_recovery'))
     if request.method == 'POST':
         password = request.form.get('password', '')
         confirmation = request.form.get('confirm_password', '')
@@ -3000,48 +2699,18 @@ def reset_password_by_phone():
             session.pop('phone_recovery_mobile', None)
             session.pop('phone_recovery_verified', None)
             flash('Password updated. You can now sign in.')
-            return redirect(url_for('student_login'))
+            return redirect(url_for('auth.student_login'))
     return render_template('phone_reset_password.html')
-
-
-@app.route('/student/reset-password/<token>', methods=['GET', 'POST'])
-@require_csrf
-def reset_password(token):
-    try:
-        data = password_reset_serializer.loads(token, max_age=15 * 60)
-    except (BadSignature, SignatureExpired):
-        flash('This password reset link is invalid or has expired.')
-        return redirect(url_for('forgot_password'))
-
-    student = Student.query.filter_by(student_id=data.get('student_id')).first()
-    if not student or not hmac.compare_digest(student.password or '', data.get('password_hash', '')):
-        flash('This password reset link is no longer valid.')
-        return redirect(url_for('forgot_password'))
-
-    if request.method == 'POST':
-        password = request.form.get('password', '')
-        confirm_password = request.form.get('confirm_password', '')
-        if not valid_password(password):
-            flash('Your new password must be at least 10 characters and include letters and numbers.')
-        elif password != confirm_password:
-            flash('The passwords do not match.')
-        else:
-            student.password = generate_password_hash(password)
-            db.session.commit()
-            flash('Password updated. You can now sign in.')
-            return redirect(url_for('student_login'))
-
-    return render_template('reset_password.html', token=token)
 
 
 # =========================
 # STUDENT PROFILE
 # =========================
 
-@app.route('/profile/<string:student_id>')
+@bp.route('/profile/<string:student_id>')
 def view_profile(student_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     student = Student.query.filter_by(student_id=student_id).first()
     
@@ -3049,7 +2718,7 @@ def view_profile(student_id):
         admin = Admin.query.filter_by(admin_id=student_id).first()
         if not admin and student_id not in ["None", "Admin", "admin"]:
             flash("Profile not found.")
-            return redirect(request.referrer or url_for('home'))
+            return redirect(safe_redirect_target(url_for('main.home')))
             
         class MockAdmin:
             def __init__(self):
@@ -3085,10 +2754,10 @@ def view_profile(student_id):
                            is_following=is_following,
                            current_user_id=current_user_id)
 
-@app.route('/student/dashboard')
+@bp.route('/student/dashboard')
 def student_dashboard():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     student_id = session['student']
     student = Student.query.filter_by(student_id=student_id).first()
@@ -3121,7 +2790,7 @@ def student_dashboard():
                            doubts_asked=doubts_asked, doubts_replied=doubts_replied,
                            chart_labels=chart_labels, chart_tasks=chart_tasks)
 
-@app.route('/api/user_preview/<string:student_id>')
+@bp.route('/api/user_preview/<string:student_id>')
 def user_preview(student_id):
     if 'student' not in session and 'admin' not in session:
         return "", 401
@@ -3146,32 +2815,32 @@ def user_preview(student_id):
     html = f"""
     <div class="text-center">
         <img src="/static/media/{pic}" class="rounded-circle shadow-sm mb-2 border" style="width: 70px; height: 70px; object-fit: cover;">
-        <h6 class="fw-bold mb-1 text-truncate">{escape(student.name)}</h6>
+        <h6 class="fw-bold mb-1 text-truncate">{escape(student.name or '')}</h6>
         <p class="small text-muted mb-3"><span class="badge bg-light text-dark border">{escape(student.department)}</span></p>
         <a href="/profile/{student.student_id}" class="btn btn-sm btn-primary rounded-pill px-4">View Profile</a>
     </div>
     """
     return html
 
-@app.route('/student/profile')
+@bp.route('/student/profile')
 def student_profile():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     # Redirect to the new generic profile view for the logged-in user
-    return redirect(url_for('view_profile', student_id=session['student']))
+    return redirect(url_for('main.view_profile', student_id=session['student']))
 
-@app.route('/profile/<string:student_id>/<string:list_type>')
+@bp.route('/profile/<string:student_id>/<string:list_type>')
 def followers_list(student_id, list_type):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     user = Student.query.filter_by(student_id=student_id).first()
     if not user:
         admin = Admin.query.filter_by(admin_id=student_id).first()
         if not admin and student_id not in ["None", "Admin", "admin"]:
             flash("Profile not found.")
-            return redirect(request.referrer or url_for('home'))
+            return redirect(safe_redirect_target(url_for('main.home')))
             
         class MockAdmin:
             def __init__(self):
@@ -3202,15 +2871,15 @@ def followers_list(student_id, list_type):
 
     return render_template("followers.html", users_list=users_list, title=title, main_user=user)
 
-@app.route('/student/settings', methods=['GET', 'POST'])
+@bp.route('/student/settings', methods=['GET', 'POST'])
 def student_settings():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     student = Student.query.filter_by(student_id=session['student']).first()
     if not student:
         session.clear()
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     if request.method == 'POST':
         action = request.form.get('action')
@@ -3250,24 +2919,24 @@ def student_settings():
                 db.session.commit()
                 flash("Password changed successfully.")
                 
-        return redirect(url_for('student_settings'))
+        return redirect(url_for('main.student_settings'))
 
     return render_template("student_settings.html", student=student)
     
-@app.route('/student/update_pic', methods=['POST'])
+@bp.route('/student/update_pic', methods=['POST'])
 def update_profile_pic():
     wants_json = request.accept_mimetypes.best == 'application/json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     if 'student' not in session:
         if wants_json:
             return jsonify(success=False, message="Please sign in again."), 401
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     student = Student.query.filter_by(student_id=session['student']).first()
     if not student:
         flash("Profile not found.")
         if wants_json:
-            return jsonify(success=False, message="Profile not found."), 404
-        return redirect(url_for('home'))
+            return jsonify(success=False, message="Profile not found."), 404 # This path is less likely
+        return redirect(url_for('main.home'))
 
     image = request.files.get('profile_pic')
     
@@ -3277,7 +2946,7 @@ def update_profile_pic():
             # Generate clean filename with extension
             ext = image.filename.rsplit('.', 1)[1].lower()
             filename = f"{uuid.uuid4().hex}.{ext}"
-            new_file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            new_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             old_filename = student.profile_pic
             try:
                 image.save(new_file_path)
@@ -3290,14 +2959,14 @@ def update_profile_pic():
                         os.remove(new_file_path)
                     except OSError:
                         pass
-                app.logger.exception("Profile picture update failed")
+                current_app.logger.exception("Profile picture update failed")
                 if wants_json:
                     return jsonify(success=False, message="Could not save the photo. Please try a smaller JPG or PNG image."), 500
                 flash("Could not save the photo. Please try a smaller JPG or PNG image.")
-                return redirect(request.referrer or url_for('student_settings'))
+                return redirect(safe_redirect_target(url_for('main.student_settings')))
 
-            if old_filename:
-                old_file_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
+            if old_filename: # This block was correctly indented in a previous step, but seems to have been reverted.
+                old_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], old_filename)
                 if os.path.exists(old_file_path):
                     try:
                         os.remove(old_file_path)
@@ -3311,20 +2980,20 @@ def update_profile_pic():
             if wants_json:
                 return jsonify(success=False, message="Please choose a JPG, PNG, GIF, or WEBP image."), 400
     else:
-        flash("Please select an image file first.")
         if wants_json:
             return jsonify(success=False, message="Please select an image file first."), 400
+        flash("Please select an image file first.") # This line was also misaligned.
 
-    return redirect(request.referrer or url_for('student_settings'))
+    return redirect(safe_redirect_target(url_for('main.student_settings')))
 
-@app.route('/student/remove_pic', methods=['POST'])
+@bp.route('/student/remove_pic', methods=['POST'])
 def remove_profile_pic():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     student = Student.query.filter_by(student_id=session['student']).first()
     if student.profile_pic:
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], student.profile_pic)
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], student.profile_pic)
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
@@ -3334,18 +3003,18 @@ def remove_profile_pic():
         db.session.commit()
         flash("Profile picture removed.")
         
-    return redirect(request.referrer or url_for('student_settings'))
+    return redirect(safe_redirect_target(url_for('main.student_settings')))
 
-@app.route('/follow/<string:student_id>', methods=['POST'])
+@bp.route('/follow/<string:student_id>', methods=['POST'])
 @require_csrf
 def follow_user(student_id):
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     current_user_id = session['student']
     if current_user_id == student_id:
         flash("You cannot follow yourself.")
-        return redirect(request.referrer or url_for('home'))
+        return redirect(safe_redirect_target(url_for('main.home')))
 
     existing_follow = Follower.query.filter_by(follower_id=current_user_id, followed_id=student_id).first()
 
@@ -3358,12 +3027,12 @@ def follow_user(student_id):
         flash(f"You are now following this user.")
     
     db.session.commit()
-    return redirect(request.referrer or url_for('home'))
+    return redirect(safe_redirect_target(url_for('main.home')))
 
-@app.route('/feedback', methods=['GET', 'POST'])
+@bp.route('/feedback', methods=['GET', 'POST'])
 def feedback():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     if request.method == 'POST':
         content = request.form.get('content')
@@ -3373,7 +3042,7 @@ def feedback():
             create_admin_notification(
                 'feedback',
                 f'New feedback from student {session["student"]}.',
-                'admin_feedback',
+                'main.admin_feedback',
             )
             db.session.commit()
             send_admin_alert(
@@ -3382,36 +3051,48 @@ def feedback():
                 {'Student ID': session['student'], 'Feedback': content.strip()},
             )
             flash("Thank you! Your feedback has been submitted.")
-            return redirect(url_for('home'))
+            return redirect(url_for('main.home'))
         else:
             flash("Please write something before submitting.")
             
     return render_template("feedback.html")
 
-@app.route('/submit_report', methods=['GET', 'POST'])
+@bp.route('/submit_report', methods=['GET', 'POST'])
+@require_csrf
 def submit_report():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        # Handle AJAX request for unauthenticated user
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(success=False, error="Authentication required", redirect_url=url_for('auth.student_login')), 401
+        # Handle regular request
+        return redirect(url_for('auth.student_login'))
 
     if request.method == 'GET':
         return render_template('submit_report.html')
     
     report_type = request.form.get('report_type')
     description = request.form.get('description')
-    item_type = request.form.get('item_type')
-    item_id = request.form.get('item_id')
+    item_type = (request.form.get('item_type') or '').strip() or None
+    item_id_raw = (request.form.get('item_id') or '').strip()
+    item_id = int(item_id_raw) if item_id_raw.isdigit() else None
     screenshot = request.files.get('screenshot')
     screenshot_filename = None
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
     valid_report_types = {'Spam', 'Fake Job', 'Abuse', 'Bug', 'Other'}
     if report_type in valid_report_types and description and description.strip():
         if screenshot and screenshot.filename != '':
             if allowed_media_file(screenshot.filename) and screenshot.filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS:
                 screenshot_filename = f"{uuid.uuid4().hex}_{secure_filename(screenshot.filename)}"
-                screenshot.save(os.path.join(app.config['UPLOAD_FOLDER'], screenshot_filename))
+                try:
+                    screenshot.save(os.path.join(current_app.config['UPLOAD_FOLDER'], screenshot_filename))
+                except Exception as e:
+                    current_app.logger.error(f"Report screenshot save failed: {e}")
+                    if is_ajax: return jsonify(success=False, message="Could not save screenshot."), 500
+                    flash("Could not save screenshot. Please try again.")
+                    return redirect(safe_redirect_target(url_for('main.home')))
             else:
                 flash("Invalid screenshot file type.")
-                return redirect(request.referrer or url_for('home'))
 
         new_report = Report(
             user_id=None if request.form.get('is_anonymous') else session['student'],
@@ -3425,7 +3106,7 @@ def submit_report():
         create_admin_notification(
             'report',
             f'New {report_type.lower()} report from {"an anonymous student" if new_report.user_id is None else "student " + session["student"]}.',
-            'admin_reports',
+            'main.admin_reports',
         )
         db.session.commit()
         send_admin_alert(
@@ -3439,19 +3120,23 @@ def submit_report():
             },
         )
         flash("Report submitted successfully. Admins will review it.")
+        if is_ajax:
+            return jsonify(success=True, message="Report submitted successfully.")
     else:
         flash('Please select an issue type and describe the problem.', 'warning')
+        if is_ajax:
+            return jsonify(success=False, message="Please select an issue type and describe the problem."), 400
 
-    return redirect(safe_redirect_target(url_for('home')))
+    return redirect(request.referrer or url_for('main.home'))
 
 # =========================
 # PRIVATE MESSAGING
 # =========================
 
-@app.route('/messages')
+@bp.route('/messages')
 def inbox():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     current_user = session['student']
     
@@ -3477,15 +3162,15 @@ def inbox():
                 
     return render_template("inbox.html", conversations=conversations.values())
 
-@app.route('/chat/<string:student_id>', methods=['GET', 'POST'])
+@bp.route('/chat/<string:student_id>', methods=['GET', 'POST'])
 def chat(student_id):
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     current_user = session['student']
     if current_user == student_id:
         flash("You cannot chat with yourself.")
-        return redirect(url_for('inbox'))
+        return redirect(url_for('main.inbox'))
         
     other_user = Student.query.filter_by(student_id=student_id).first_or_404()
     
@@ -3498,13 +3183,13 @@ def chat(student_id):
         if image and image.filename != '':
             if allowed_media_file(image.filename):
                 image_filename = f"{uuid.uuid4().hex}_{secure_filename(image.filename)}"
-                image.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
+                image.save(os.path.join(current_app.config['UPLOAD_FOLDER'], image_filename))
                 
         if content.strip() or image_filename:
             new_msg = PrivateMessage(sender_id=current_user, receiver_id=student_id, content=content.strip(), image_file=image_filename)
             db.session.add(new_msg)
             db.session.commit()
-            return redirect(url_for('chat', student_id=student_id))
+            return redirect(url_for('main.chat', student_id=student_id))
             
     # Mark unread messages as read when opening chat
     unread_msgs = PrivateMessage.query.filter_by(sender_id=student_id, receiver_id=current_user, is_read=False).all()
@@ -3523,16 +3208,16 @@ def chat(student_id):
     
     return render_template("chat.html", other_user=other_user, messages=messages, current_user=current_user)
 
-@app.route('/delete_message/<int:message_id>', methods=['POST'])
+@bp.route('/delete_message/<int:message_id>', methods=['POST'])
 @require_csrf
 def delete_message(message_id):
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     msg = PrivateMessage.query.get_or_404(message_id)
     if msg.sender_id == session['student']:
         if msg.image_file:
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], msg.image_file)
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], msg.image_file)
             if os.path.exists(file_path):
                 try:
                     os.remove(file_path)
@@ -3541,42 +3226,34 @@ def delete_message(message_id):
         db.session.delete(msg)
         db.session.commit()
         
-    return redirect(request.referrer or url_for('inbox'))
+    return redirect(safe_redirect_target(url_for('main.inbox')))
 
 # =========================
 # LOGOUT
 # =========================
 
-@app.route('/logout', methods=['POST'])
-@require_csrf
-def logout():
-
-    session.clear()
-
-    return redirect(url_for('home'))
-
 # =========================
 # STUDENT UTILITIES (CALCULATOR)
 # =========================
 
-@app.route('/gpa_calculator')
+@bp.route('/gpa_calculator')
 def gpa_calculator():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     return render_template("gpa_calculator.html")
 
-@app.route('/planner')
+@bp.route('/planner')
 def planner():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     tasks = Task.query.filter_by(user_id=session['student']).order_by(Task.is_completed.asc(), Task.timestamp.desc()).all()
     return render_template("planner.html", tasks=tasks)
 
-@app.route('/add_task', methods=['POST'])
+@bp.route('/add_task', methods=['POST'])
 def add_task():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     task_content = request.form.get('task')
     due_date = request.form.get('due_date') # Can be empty
@@ -3589,34 +3266,34 @@ def add_task():
         )
         db.session.add(new_task)
         db.session.commit()
-    return redirect(url_for('planner'))
+    return redirect(url_for('main.planner'))
 
-@app.route('/toggle_task/<int:task_id>', methods=['POST'])
+@bp.route('/toggle_task/<int:task_id>', methods=['POST'])
 @require_csrf
 def toggle_task(task_id):
     task = Task.query.get_or_404(task_id)
     if 'student' in session and task.user_id == session['student']:
         task.is_completed = not task.is_completed
         db.session.commit()
-    return redirect(url_for('planner'))
+    return redirect(url_for('main.planner'))
 
-@app.route('/delete_task/<int:task_id>', methods=['POST'])
+@bp.route('/delete_task/<int:task_id>', methods=['POST'])
 @require_csrf
 def delete_task(task_id):
     task = Task.query.get_or_404(task_id)
     if 'student' in session and task.user_id == session['student']:
         db.session.delete(task)
         db.session.commit()
-    return redirect(url_for('planner'))
+    return redirect(url_for('main.planner'))
 
 # =========================
 # ACADEMIC RESOURCES HUB
 # =========================
 
-@app.route('/resources')
+@bp.route('/resources')
 def resources():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     search_query = request.args.get('q', '').strip()
     dept_filter = request.args.get('department')
@@ -3659,10 +3336,10 @@ def resources():
         saved_resource_ids=saved_resource_ids
     )
 
-@app.route('/add_resource', methods=['POST'])
+@bp.route('/add_resource', methods=['POST'])
 def add_resource():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     title = request.form.get('title')
     subject = request.form.get('subject')
@@ -3673,29 +3350,29 @@ def add_resource():
     # Validation
     if not all([title, subject, department, year]) or not title.strip() or not subject.strip():
         flash("All fields (Title, Subject, Dept, Year) are required.")
-        return redirect(url_for('resources'))
+        return redirect(url_for('main.resources'))
     if department not in DEPARTMENTS or year not in {'1st Year', '2nd Year', '3rd Year', '4th Year', 'All Years'}:
         flash("Choose a valid department and year.")
-        return redirect(url_for('resources'))
+        return redirect(url_for('main.resources'))
 
     if not file or file.filename == '':
         flash("No file selected for upload. Please choose a file.")
-        return redirect(url_for('resources'))
+        return redirect(url_for('main.resources'))
 
     if file:
         ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else None
 
-        if ext and ext in app.config['RESOURCE_EXTENSIONS']:
+        if ext and ext in current_app.config['RESOURCE_EXTENSIONS']:
             try:
                 # Generate unique, safe filename
                 safe_name = secure_filename(file.filename) or f"resource_{uuid.uuid4().hex[:8]}.{ext}"
                 unique_filename = f"{uuid.uuid4().hex}_{safe_name}"
 
                 # Ensure directory exists
-                os.makedirs(app.config['RESOURCE_FOLDER'], exist_ok=True)
+                os.makedirs(current_app.config['RESOURCE_FOLDER'], exist_ok=True)
 
                 # The file_path in the DB should only be the filename. The full path is constructed in the template.
-                file.save(os.path.join(app.config['RESOURCE_FOLDER'], unique_filename))
+                file.save(os.path.join(current_app.config['RESOURCE_FOLDER'], unique_filename))
 
                 user_id = session.get('student') or session.get('admin')
                 user_name = "Admin"
@@ -3720,19 +3397,19 @@ def add_resource():
                 db.session.rollback()
                 print(f"ERROR: Resource upload failed: {e}")
                 flash(f"Upload failed: {str(e)}")
-                return redirect(url_for('resources')) # Ensure redirect on error
+                return redirect(url_for('main.resources')) # Ensure redirect on error
         else:
-            flash(f"Invalid file format (.{ext if ext else 'None'}). Allowed: {', '.join(app.config['RESOURCE_EXTENSIONS'])}")
-            return redirect(url_for('resources')) # Ensure redirect on error
+            flash(f"Invalid file format (.{ext if ext else 'None'}). Allowed: {', '.join(current_app.config['RESOURCE_EXTENSIONS'])}")
+            return redirect(url_for('main.resources')) # Ensure redirect on error
     
     # This final redirect is crucial. It tells the browser the process is complete.
-    return redirect(url_for('resources')) 
+    return redirect(url_for('main.resources')) 
 
-@app.route('/delete_resource/<int:resource_id>', methods=['POST'])
+@bp.route('/delete_resource/<int:resource_id>', methods=['POST'])
 @require_csrf
 def delete_resource(resource_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     resource = Resource.query.get_or_404(resource_id)
     current_user = session.get('student') or session.get('admin')
@@ -3740,7 +3417,7 @@ def delete_resource(resource_id):
     if resource.user_id == current_user or 'admin' in session:
         file_path = os.path.join(app.config['RESOURCE_FOLDER'], resource.file_path)
         if not os.path.isfile(file_path):
-            file_path = os.path.join(app.config['LEGACY_RESOURCE_FOLDER'], os.path.basename(resource.file_path))
+            file_path = os.path.join(current_app.config['LEGACY_RESOURCE_FOLDER'], os.path.basename(resource.file_path))
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
@@ -3750,27 +3427,27 @@ def delete_resource(resource_id):
         db.session.commit()
         flash("Resource deleted.")
         
-    return redirect(url_for('resources'))
+    return redirect(url_for('main.resources'))
 
-@app.route('/resource/<int:resource_id>/file')
+@bp.route('/resource/<int:resource_id>/file')
 def download_resource_file(resource_id):
     """Serve academic resources only to signed-in campus users."""
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     resource = Resource.query.get_or_404(resource_id)
     filename = os.path.basename(resource.file_path)
-    folder = app.config['RESOURCE_FOLDER']
+    folder = current_app.config['RESOURCE_FOLDER']
     if not os.path.isfile(os.path.join(folder, filename)):
-        folder = app.config['LEGACY_RESOURCE_FOLDER']
+        folder = current_app.config['LEGACY_RESOURCE_FOLDER']
     if not os.path.isfile(os.path.join(folder, filename)):
         abort(404)
     return send_from_directory(folder, filename, as_attachment=request.args.get('download') == '1')
 
 
-@app.route('/resource/<int:resource_id>', methods=['GET', 'POST'])
+@bp.route('/resource/<int:resource_id>', methods=['GET', 'POST'])
 def view_resource(resource_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     resource = Resource.query.get_or_404(resource_id)
     
@@ -3786,13 +3463,13 @@ def view_resource(resource_id):
             comment = ResourceComment(content=content.strip(), user_id=user_id, user_name=user_name, resource_id=resource_id)
             db.session.add(comment)
             db.session.commit()
-            flash("Comment added!")
-            return redirect(url_for('view_resource', resource_id=resource_id))
+            flash("Comment added!") # This path is less likely
+            return redirect(url_for('main.view_resource', resource_id=resource_id))
 
     comments = ResourceComment.query.filter_by(resource_id=resource_id).order_by(ResourceComment.timestamp.desc()).all()
     return render_template("resource_detail.html", resource=resource, comments=comments)
 
-@app.route('/delete_resource_comment/<int:comment_id>', methods=['POST'])
+@bp.route('/delete_resource_comment/<int:comment_id>', methods=['POST'])
 @require_csrf
 def delete_resource_comment(comment_id):
     comment = ResourceComment.query.get_or_404(comment_id)
@@ -3800,14 +3477,14 @@ def delete_resource_comment(comment_id):
         db.session.delete(comment)
         db.session.commit()
         flash("Comment deleted.")
-    return redirect(safe_redirect_target(url_for('resources')))
+    return redirect(safe_redirect_target(url_for('main.resources')))
 
-@app.route('/toggle_save_resource/<int:resource_id>', methods=['POST'])
+@bp.route('/toggle_save_resource/<int:resource_id>', methods=['POST'])
 @require_csrf
 def toggle_save_resource(resource_id):
     if 'student' not in session:
         flash("Please log in to save resources.")
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     user_id = session['student']
     existing_save = SavedResource.query.filter_by(user_id=user_id, resource_id=resource_id).first()
@@ -3821,12 +3498,12 @@ def toggle_save_resource(resource_id):
         flash("Resource saved to bookmarks!")
         
     db.session.commit()
-    return redirect(safe_redirect_target(url_for('resources')))
+    return redirect(safe_redirect_target(url_for('main.resources')))
 
-@app.route('/saved_resources')
+@bp.route('/saved_resources')
 def saved_resources():
     if 'student' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     user_id = session['student']
     saved_ids = [sr.resource_id for sr in SavedResource.query.filter_by(user_id=user_id).all()]
@@ -3838,10 +3515,10 @@ def saved_resources():
 # CAMPUS GALLERY
 # =========================
 
-@app.route('/gallery')
+@bp.route('/gallery')
 def gallery():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     gallery_items = []
     
@@ -3865,7 +3542,7 @@ def gallery():
                 'caption': e.title,
                 'user': e.posted_by,
                 'user_id': e.user_id,
-                'date': e.date, # Stored as YYYY-MM-DD string
+                'date_obj': datetime.strptime(e.date, '%Y-%m-%d') if isinstance(e.date, str) else e.date,
                 'type': 'Event',
                 'media_type': m_type
             })
@@ -3880,13 +3557,13 @@ def gallery():
                 'caption': n.content,
                 'user': n.user_name,
                 'user_id': n.user_id,
-                'date': n.timestamp.strftime('%Y-%m-%d'),
+                'date_obj': n.timestamp,
                 'type': 'News',
                 'media_type': m_type
             })
             
     # Sort by date (newest first)
-    gallery_items.sort(key=lambda x: x['date'], reverse=True)
+    gallery_items.sort(key=lambda x: x['date_obj'], reverse=True)
     
     return render_template("gallery.html", images=gallery_items)
 
@@ -3894,10 +3571,10 @@ def gallery():
 # CAREER / OPPORTUNITIES
 # =========================
 
-@app.route('/opportunities')
+@bp.route('/opportunities')
 def opportunities():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
     
     category_filter = request.args.get('category')
     page = request.args.get('page', 1, type=int)
@@ -3912,25 +3589,25 @@ def opportunities():
     
     return render_template("opportunities.html", jobs=jobs, pagination=pagination, categories=JOB_CATEGORIES, current_category=category_filter)
 
-@app.route('/add_opportunity', methods=['POST'])
+@bp.route('/add_opportunity', methods=['POST'])
 def add_opportunity():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     title = request.form.get('title')
     company = request.form.get('company')
     category = request.form.get('category')
     description = request.form.get('description')
     link = request.form.get('link')
-    image = request.files.get('image') # Get the image file
+    image = request.files.get('image')
     
     if title and category:
         if category not in JOB_CATEGORIES:
             flash("Choose a valid opportunity category.")
-            return redirect(url_for('opportunities'))
+            return redirect(url_for('main.opportunities'))
         if not valid_external_url(link):
             flash("The opportunity link must be a complete http:// or https:// URL.")
-            return redirect(url_for('opportunities'))
+            return redirect(url_for('main.opportunities'))
         user_id = session.get('student') or session.get('admin')
         user_name = "Admin"
         if 'student' in session:
@@ -3942,10 +3619,10 @@ def add_opportunity():
         if image and image.filename != '':
             if allowed_media_file(image.filename):
                 image_filename = f"{uuid.uuid4().hex}_{secure_filename(image.filename)}"
-                image.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
+                image.save(os.path.join(current_app.config['UPLOAD_FOLDER'], image_filename))
             else:
                 flash("Invalid file type for opportunity image. Only images and videos are allowed.")
-                return redirect(url_for('opportunities')) # Ensure redirect on error
+                return redirect(url_for('main.opportunities')) # Ensure redirect on error
                 
         new_job = JobPost(
             title=title.strip(),
@@ -3963,13 +3640,13 @@ def add_opportunity():
     else:
         flash("Title and category are required.")
         
-    return redirect(url_for('opportunities'))
+    return redirect(url_for('main.opportunities'))
 
-@app.route('/delete_opportunity/<int:job_id>', methods=['POST'])
+@bp.route('/delete_opportunity/<int:job_id>', methods=['POST'])
 @require_csrf
 def delete_opportunity(job_id):
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
         
     job = JobPost.query.get_or_404(job_id)
     current_user = session.get('student') or session.get('admin')
@@ -3980,20 +3657,20 @@ def delete_opportunity(job_id):
         db.session.commit()
         flash("Opportunity deleted.")
         
-    return redirect(url_for('opportunities'))
+    return redirect(url_for('main.opportunities'))
 
 # =========================
 # GLOBAL SEARCH
 # =========================
 
-@app.route('/search')
+@bp.route('/search')
 def global_search():
     if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('student_login'))
+        return redirect(url_for('auth.student_login'))
 
     query = request.args.get('q', '').strip()
     if not query:
-        return redirect(safe_redirect_target(url_for('home')))
+        return redirect(safe_redirect_target(url_for('main.home')))
 
     # Search across Events (Title, Description, Department)
     events = Event.query.filter(
@@ -4014,19 +3691,338 @@ def global_search():
 # STATIC PAGES
 # =========================
 
-@app.route('/privacy')
+@bp.route('/privacy')
 def privacy_policy():
     return render_template("privacy_policy.html")
 
+
 # =========================
-# RUN APP
+# APPLICATION FACTORY
 # =========================
 
+def create_app(config_object=None):
+    app = Flask(__name__)
+
+    # --- CONFIGURATION ---
+    trusted_proxy_count = int(os.getenv("TRUST_PROXY_COUNT", "0"))
+    if trusted_proxy_count:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=trusted_proxy_count, x_proto=trusted_proxy_count, x_host=trusted_proxy_count)
+    
+    secret_key = os.getenv("SECRET_KEY")
+    if not secret_key:
+        if is_production:
+            raise RuntimeError("SECRET_KEY must be configured before starting in production.")
+        secret_key = secrets.token_urlsafe(48)
+        app.logger.warning("SECRET_KEY is not set; using a temporary development-only key.")
+    app.secret_key = secret_key
+
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("FATAL ERROR: DATABASE_URL not found in .env file.")
+
+    public_base_url = (os.getenv("PUBLIC_BASE_URL") or "").rstrip("/")
+    if public_base_url:
+        parsed_public_url = urlparse(public_base_url)
+        if parsed_public_url.scheme not in {"http", "https"} or not parsed_public_url.netloc:
+            raise RuntimeError("PUBLIC_BASE_URL must be a complete http(s) URL.")
+    elif is_production:
+        raise RuntimeError("PUBLIC_BASE_URL must be configured before starting in production.")
+
+    # ==========================
+    # MAIL & APP CONFIG
+    # ==========================
+    app.config.update(
+        MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
+        MAIL_PORT=int(os.getenv("MAIL_PORT", "587")),
+        MAIL_USE_TLS=os.getenv("MAIL_USE_TLS", "true").lower() in {"1", "true", "yes"},
+        MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+        MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+        MAIL_DEFAULT_SENDER=os.getenv("MAIL_DEFAULT_SENDER") or os.getenv("MAIL_USERNAME"),
+
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=is_production,
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
+
+        PUBLIC_BASE_URL=public_base_url,
+        ADMIN_ALERT_RECIPIENT=os.getenv("ADMIN_ALERT_RECIPIENT"),
+
+        FAST2SMS_API_KEY=os.getenv("FAST2SMS_API_KEY"),
+        FAST2SMS_OTP_ID=os.getenv("FAST2SMS_OTP_ID"),
+
+        SQLALCHEMY_DATABASE_URI=db_url,
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+
+        UPLOAD_FOLDER=os.path.join(app.root_path, "static", "media"),
+        RESOURCE_FOLDER=os.path.join(app.root_path, "private_uploads", "resources"),
+        LEGACY_RESOURCE_FOLDER=os.path.join(app.root_path, "static", "media", "resources"),
+        CSS_FOLDER=os.path.join(app.root_path, "static", "css"),
+
+        ALLOWED_EXTENSIONS={
+            "png", "jpg", "jpeg", "gif", "webp", "heic",
+            "mp4", "mov", "avi", "webm",
+            "pdf", "docx", "doc", "pptx", "ppt", "txt"
+        },
+
+        RESOURCE_EXTENSIONS={
+            "pdf", "docx", "doc", "pptx", "ppt", "txt"
+        },
+
+        RESUME_EXTENSIONS={
+            "pdf", "docx", "txt"
+        },
+
+        MAX_CONTENT_LENGTH=64 * 1024 * 1024,
+    )
+
+    if is_production:
+        app.config["PREFERRED_URL_SCHEME"] = "https"
+        app.config["TRUSTED_HOSTS"] = [urlparse(public_base_url).netloc]
+
+        if not app.config["ADMIN_ALERT_RECIPIENT"]:
+            raise RuntimeError(
+                "ADMIN_ALERT_RECIPIENT must be configured before starting in production."
+            )
+
+    # --------------------------
+    # INITIALIZE EXTENSIONS
+    # --------------------------
+    db.init_app(app)
+    mail.init_app(app)
+    migrate.init_app(app, db)
+
+    app.jinja_env.filters['time_ago'] = time_ago
+    app.jinja_env.filters['display_time'] = time_ago  # Alias for time_ago
+
+    global password_reset_serializer
+    password_reset_serializer = URLSafeTimedSerializer(
+        app.secret_key,
+        salt="student-password-reset"
+    )
+
+    # --------------------------
+    # CONTEXT PROCESSORS
+    # --------------------------
+    @app.context_processor
+    def inject_global_context():
+        unread_count = 0
+        unread_message_count = 0
+        admin_unread_count = 0
+        current_user_pic = None
+
+        if "student" in session:
+            unread_count = Notification.query.filter_by(
+                user_id=session["student"],
+                is_read=False
+            ).count()
+
+            unread_message_count = PrivateMessage.query.filter_by(
+                receiver_id=session["student"],
+                is_read=False
+            ).count()
+
+            student = Student.query.filter_by(
+                student_id=session["student"]
+            ).first()
+
+            if student and student.profile_pic:
+                current_user_pic = student.profile_pic
+
+        elif "admin" in session:
+            admin_unread_count = AdminNotification.query.filter_by(
+                is_read=False
+            ).count()
+
+        return dict(
+            csrf_token=csrf_token,
+            unread_count=unread_count,
+            unread_message_count=unread_message_count,
+            admin_unread_count=admin_unread_count,
+            current_user_pic=current_user_pic,
+        )
+
+    @app.before_request
+    def before_request_handlers():
+
+        g.verify_password_and_upgrade = verify_password_and_upgrade
+
+        if request.endpoint != "main.upload_allowed_students":
+
+            for file_storage in request.files.values():
+
+                if (
+                    file_storage
+                    and file_storage.filename
+                    and not upload_content_is_safe(file_storage)
+                ):
+                    abort(
+                        400,
+                        description="The uploaded file does not match a supported file type.",
+                    )
+
+    # --------------------------
+    # REGISTER BLUEPRINTS
+    # --------------------------
+
+    @app.route('/manifest.json')
+    def manifest():
+        return send_from_directory(app.static_folder, 'manifest.json', mimetype='application/manifest+json')
+
+    @app.route('/sw.js')
+    def service_worker():
+        return send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
+
+    # IMPORTANT:
+    # Keep this at the END of create_app()
+    from auth import auth_bp
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(bp)
+
+    app.wsgi_app = passthrough_wsgi_app(app.wsgi_app)
+
+    # Backward-compatible endpoint aliases for templates that still reference
+    # legacy, unprefixed route names.
+    endpoint_aliases = {
+        'home': 'main.home',
+        'campus_news': 'main.campus_news',
+        'add_news_post': 'main.add_news_post',
+        'edit_news_post': 'main.edit_news_post',
+        'delete_news_post': 'main.delete_news_post',
+        'like_news_post': 'main.like_news_post',
+        'add_news_comment': 'main.add_news_comment',
+        'delete_news_comment': 'main.delete_news_comment',
+        'edit_news_comment': 'main.edit_news_comment',
+        'notifications': 'main.notifications',
+        'mark_notification_read': 'main.mark_notification_read',
+        'mark_all_notifications_read': 'main.mark_all_notifications_read',
+        'add_event': 'main.add_event',
+        'edit_event': 'main.edit_event',
+        'edit_event_description': 'main.edit_event_description',
+        'delete_event': 'main.delete_event',
+        'like_event': 'main.like_event',
+        'register_event': 'main.register_event',
+        'add_comment': 'main.add_comment',
+        'delete_comment': 'main.delete_comment',
+        'edit_comment': 'main.edit_comment',
+        'lost_found': 'main.lost_found',
+        'add_lost_item': 'main.add_lost_item',
+        'resolve_item': 'main.resolve_item',
+        'delete_lost_item': 'main.delete_lost_item',
+        'doubts': 'main.doubts',
+        'add_doubt': 'main.add_doubt',
+        'reply_doubt': 'main.reply_doubt',
+        'delete_doubt': 'main.delete_doubt',
+        'delete_doubt_reply': 'main.delete_doubt_reply',
+        'polls': 'main.polls',
+        'create_poll': 'main.create_poll',
+        'vote': 'main.vote',
+        'delete_poll': 'main.delete_poll',
+        'admin_login': 'main.admin_login',
+        'admin_dashboard': 'main.admin_dashboard',
+        'admin_profile': 'main.admin_profile',
+        'admin_notifications': 'main.admin_notifications',
+        'admin_feedback': 'main.admin_feedback',
+        'reply_to_feedback': 'main.reply_to_feedback',
+        'admin_reports': 'main.admin_reports',
+        'reply_to_report': 'main.reply_to_report',
+        'update_report_status': 'main.update_report_status',
+        'action_report': 'main.action_report',
+        'admin_recovery_requests': 'main.admin_recovery_requests',
+        'issue_admin_recovery_link': 'main.issue_admin_recovery_link',
+        'export_students': 'main.export_students',
+        'view_allowed_students': 'main.view_allowed_students',
+        'add_allowed_student': 'main.add_allowed_student',
+        'upload_allowed_students': 'main.upload_allowed_students',
+        'delete_allowed_student': 'main.delete_allowed_student',
+        'delete_allowed_students_bulk': 'main.delete_allowed_students_bulk',
+        'student_profile': 'main.student_profile',
+        'student_dashboard': 'main.student_dashboard',
+        'student_settings': 'main.student_settings',
+        'followers_list': 'main.followers_list',
+        'update_profile_pic': 'main.update_profile_pic',
+        'remove_profile_pic': 'main.remove_profile_pic',
+        'follow_user': 'main.follow_user',
+        'feedback': 'main.feedback',
+        'submit_report': 'main.submit_report',
+        'inbox': 'main.inbox',
+        'chat': 'main.chat',
+        'delete_message': 'main.delete_message',
+        'gpa_calculator': 'main.gpa_calculator',
+        'planner': 'main.planner',
+        'add_task': 'main.add_task',
+        'toggle_task': 'main.toggle_task',
+        'delete_task': 'main.delete_task',
+        'resources': 'main.resources',
+        'add_resource': 'main.add_resource',
+        'delete_resource': 'main.delete_resource',
+        'download_resource_file': 'main.download_resource_file',
+        'view_resource': 'main.view_resource',
+        'delete_resource_comment': 'main.delete_resource_comment',
+        'toggle_save_resource': 'main.toggle_save_resource',
+        'saved_resources': 'main.saved_resources',
+        'gallery': 'main.gallery',
+        'opportunities': 'main.opportunities',
+        'add_opportunity': 'main.add_opportunity',
+        'delete_opportunity': 'main.delete_opportunity',
+        'global_search': 'main.global_search',
+        'privacy_policy': 'main.privacy_policy',
+        'placement': 'main.placement',
+        'resume_analyzer': 'main.resume_analyzer',
+        'analyze_placement': 'main.analyze_placement',
+        'phone_recovery': 'main.phone_recovery',
+        'verify_phone_recovery': 'main.verify_phone_recovery',
+        'reset_password_by_phone': 'main.reset_password_by_phone',
+        'student_login': 'auth.student_login',
+        'student_register': 'auth.student_register',
+        'request_admin_recovery': 'auth.request_admin_recovery',
+        'forgot_password': 'auth.forgot_password',
+        'reset_password': 'auth.reset_password',
+        'logout': 'auth.logout',
+    }
+
+    for alias, target in endpoint_aliases.items():
+        if alias in app.view_functions or target not in app.view_functions:
+            continue
+        target_rule = next((rule.rule for rule in app.url_map.iter_rules(target)), None)
+        if target_rule:
+            app.add_url_rule(target_rule, endpoint=alias, view_func=app.view_functions[target])
+
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+    return app
+
+
+# --------------------------
+# APP START
+# --------------------------
+
+env_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    ".env",
+)
+
+load_dotenv(env_path, override=False)
+
+app = create_app()
+
 if __name__ == "__main__":
-    # In production, debug should be False. We check the environment variable.
-    debug_mode = os.getenv("FLASK_DEBUG", "False").lower() == "true"
+
+    debug_mode = os.getenv(
+        "FLASK_DEBUG",
+        "False",
+    ).lower() == "true"
+
     if is_production and debug_mode:
-        raise RuntimeError("FLASK_DEBUG must be disabled in production.")
-    # use_reloader=False prevents WinError 10038 on Python 3.13 + Windows
-    print("🌟 STARTING NEW SERVER ON PORT 5001 🌟")
-    app.run(host='0.0.0.0', port=5001, debug=debug_mode, use_reloader=False)
+        raise RuntimeError(
+            "FLASK_DEBUG must be disabled in production."
+        )
+
+    print("STARTING SERVER ON PORT 5001")
+
+    app.run(
+        host="0.0.0.0",
+        port=5001,
+        debug=debug_mode,
+        use_reloader=False,
+    )

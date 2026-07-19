@@ -19,7 +19,7 @@
                         <i class="fas fa-book me-2"></i> {{ resource.subject }}
                         <span class="mx-3">•</span>
                         <div class="position-relative d-inline-block me-2">
-                            <a href="{{ url_for('view_profile', student_id=resource.user_id) }}" class="text-decoration-none">
+                            <a href="{{ url_for('main.view_profile', student_id=resource.user_id) }}" class="text-decoration-none">
                                 <i class="fas fa-user text-secondary"></i> 
                             </a>
                         </div>
@@ -59,7 +59,7 @@
                         {% for comment in comments %}
                         <div class="d-flex mb-3">
                             <div class="position-relative d-inline-block me-3 flex-shrink-0">
-                                <a href="{{ url_for('view_profile', student_id=comment.user_id) }}" class="text-decoration-none">
+                                <a href="{{ url_for('main.view_profile', student_id=comment.user_id) }}" class="text-decoration-none">
                                     <div class="avatar-sm bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
                                         {{ comment.user_name[0] | upper }}
                                     </div>

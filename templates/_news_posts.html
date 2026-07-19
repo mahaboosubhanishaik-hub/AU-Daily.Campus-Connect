@@ -4,7 +4,7 @@
         <div class="d-flex align-items-start">
             <!-- Profile Pic -->
             <div class="position-relative d-inline-block me-3">
-                <a href="{{ url_for('view_profile', student_id=post.user_id) }}" class="text-decoration-none profile-link" data-user-id="{{ post.user_id }}">
+                <a href="{{ url_for('main.view_profile', student_id=post.user_id) }}" class="text-decoration-none profile-link" data-user-id="{{ post.user_id }}">
                     {% if post.profile_pic %}
                         <img src="{{ url_for('static', filename='media/' + post.profile_pic) }}" class="rounded-circle" style="width: 45px; height: 45px; object-fit: cover;">
                     {% elif post.is_admin %}
@@ -20,17 +20,29 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="mb-0 fw-bold">
-                            <a href="{{ url_for('view_profile', student_id=post.user_id) }}" class="text-decoration-none text-dark profile-link" data-user-id="{{ post.user_id }}">{{ post.user_name }}</a>
+                            <a href="{{ url_for('main.view_profile', student_id=post.user_id) }}" class="text-decoration-none text-dark profile-link" data-user-id="{{ post.user_id }}">{{ post.user_name }}</a>
                             {% if post.is_admin %}<span class="badge bg-primary small">Admin</span>{% else %}<span class="badge bg-secondary small">{{post.department}}</span>{% endif %}
                         </h6>
                         <small class="text-muted">{{ post.timestamp | time_ago }}</small>
                     </div>
-                    {% if (session.get('student') and session.get('student') == post.user_id) or session.get('admin') %}
-                    <div class="d-flex align-items-center gap-2">
-                        <a href="javascript:void(0);" onclick="document.getElementById('post-edit-form-{{ post.id }}').classList.remove('d-none'); document.getElementById('post-content-text-{{ post.id }}').classList.add('d-none');" class="text-primary text-decoration-none small" title="Edit">✏️</a>
-                        <a href="{{ url_for('delete_news_post', post_id=post.id) }}" class="btn-close" style="font-size: 0.8rem;" onclick="return confirm('Delete this post?')"></a>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light py-0 px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-h text-muted"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg">
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#reportModal" data-item-type="NewsPost" data-item-id="{{ post.id }}"><i class="fas fa-flag fa-fw me-2 text-warning"></i>Report Post</a></li>
+                            {% if (session.get('student') and session.get('student') == post.user_id) or session.get('admin') %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="javascript:void(0);" onclick="document.getElementById('post-edit-form-{{ post.id }}').classList.remove('d-none'); document.getElementById('post-content-text-{{ post.id }}').classList.add('d-none');"><i class="fas fa-edit fa-fw me-2 text-primary"></i>Edit Post</a></li>
+                            <li>
+                                <form action="{{ url_for('delete_news_post', post_id=post.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this post?');" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="dropdown-item text-danger"><i class="fas fa-trash-alt fa-fw me-2"></i>Delete Post</button>
+                                </form>
+                            </li>
+                            {% endif %}
+                        </ul>
                     </div>
-                    {% endif %}
                 </div>
                 <p id="post-content-text-{{ post.id }}" class="mt-2 mb-0" style="white-space: pre-wrap;">{{ post.content }}</p>
                 <form action="{{ url_for('edit_news_post', post_id=post.id) }}" method="POST" class="d-none mt-2" id="post-edit-form-{{ post.id }}">
@@ -66,12 +78,12 @@
                     <div class="d-flex justify-content-between mb-1">
                         <div class="d-flex align-items-start w-100 me-2" id="comment-text-{{ comment.id }}">
                             <div class="position-relative d-inline-block me-2">
-                                <a href="{{ url_for('view_profile', student_id=comment.user_id) }}" class="text-decoration-none">
+                                <a href="{{ url_for('main.view_profile', student_id=comment.user_id) }}" class="text-decoration-none">
                                     <i class="fas fa-user-circle text-muted" style="font-size: 20px;"></i>
                                 </a>
                             </div>
                             <div>
-                                <strong class="small"><a href="{{ url_for('view_profile', student_id=comment.user_id) }}" class="text-decoration-none text-dark profile-link" data-user-id="{{ comment.user_id }}">{{ comment.user_name }}</a>:</strong> <span class="small">{{ comment.content }}</span>
+                                <strong class="small"><a href="{{ url_for('main.view_profile', student_id=comment.user_id) }}" class="text-decoration-none text-dark profile-link" data-user-id="{{ comment.user_id }}">{{ comment.user_name }}</a>:</strong> <span class="small">{{ comment.content }}</span>
                             </div>
                         </div>
                         <form action="{{ url_for('edit_news_comment', comment_id=comment.id) }}" method="POST" class="d-none w-100 me-2" id="edit-form-{{ comment.id }}">

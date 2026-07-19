@@ -10,10 +10,14 @@
           <p class="text-muted small">Submit a request, then contact your university administrator through an official channel to verify your identity.</p>
         </div>
         <form method="POST">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
             <label class="form-label small fw-bold">STUDENT ID</label>
             <input class="form-control bg-light border-0 py-2" name="student_id" required autofocus>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">EMAIL FOR TEMPORARY PASSWORD</label>
+            <input type="email" class="form-control bg-light border-0 py-2" name="recovery_email" required placeholder="Enter an email you can access">
           </div>
           <div class="mb-3">
             <label class="form-label small fw-bold">CONTACT NOTE <span class="text-muted fw-normal">(optional)</span></label>

@@ -3,9 +3,10 @@
 <style>
     .resume-lab { max-width: 1100px; margin: 24px auto 48px; padding: 20px; border-radius: 18px; background: #070d1c; color: #e8eefc; box-shadow: 0 22px 50px rgba(8, 14, 30, .18); }
     .resume-lab * { box-sizing: border-box; }
-    .lab-upload { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: end; padding: 17px; border: 1px solid #1d2b48; border-radius: 13px; background: linear-gradient(115deg, #0c1830, #101b32); }
+    .lab-upload { display: grid; grid-template-columns: minmax(220px, .75fr) minmax(260px, 1.25fr) auto; gap: 14px; align-items: end; padding: 17px; border: 1px solid #1d2b48; border-radius: 13px; background: linear-gradient(115deg, #0c1830, #101b32); }
     .lab-upload label, .dash-label { display: block; margin-bottom: 7px; color: #91a5ca; font-size: .67rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
     .lab-upload .form-control { min-height: 42px; border: 1px solid #243757; border-radius: 8px; background: #0a1428; color: #ecf2ff; font-size: .84rem; }
+    .lab-upload textarea.form-control { min-height: 86px; resize: vertical; }
     .lab-upload .form-control::file-selector-button { margin: -7px 10px -7px -12px; padding: 9px 12px; border: 0; background: #253b63; color: #e9efff; font-weight: 700; }
     .lab-upload .form-control::placeholder { color: #607496; }
     .lab-upload button { min-height: 42px; padding: 0 20px; border: 0; border-radius: 8px; background: #5d55e8; color: white; font-size: .84rem; font-weight: 800; }
@@ -34,8 +35,8 @@
 <main class="resume-lab">
     <form id="resumeForm" class="lab-upload" method="POST" enctype="multipart/form-data">
         <div><label for="resume">Resume file</label><input id="resume" name="resume" class="form-control" type="file" accept=".pdf,.docx,.txt" required></div>
-        <div><label for="job_description">Target job description (optional)</label><input id="job_description" name="job_description" class="form-control" placeholder="Paste a role to calculate job match"></div>
-        <button id="analyzeButton" type="submit"><i class="fas fa-sparkles me-1"></i> Analyze resume</button>
+        <div><label for="job_description">Job description or target role</label><textarea id="job_description" name="job_description" class="form-control" placeholder="Paste a role, skills list, or full job description for a sharper match"></textarea></div>
+        <button id="analyzeButton" type="submit"><i class="fas fa-file-lines me-1"></i> Analyze</button>
     </form>
     <div id="analyzerError" class="alert alert-warning mt-3 mb-0 d-none" role="alert"></div>
 
@@ -49,30 +50,13 @@
             <article class="dash-card"><p class="card-title">JOB MATCH</p><p class="big-green">{% if job_match is not none %}{{ job_match }}%{% else %}—{% endif %}</p><p class="good-copy">{% if job_match is not none %}Role comparison{% else %}Add a job description{% endif %}</p><div class="progress-line" style="--match: {{ job_match if job_match is not none else 0 }}%"><i></i></div></article>
             <article class="dash-card"><p class="card-title">ATS COMPATIBILITY</p><p class="big-green">{{ result.ats_compatibility }}</p><p class="tiny-copy">Your resume is checked for clear sections, readable text, and ATS-safe formatting.</p></article>
         </div>
-
-        <div class="two-grid">
-            <article class="dash-card"><h3><span class="heading-dot"></span>Skills Found <span class="count">{{ result.technical_skills|length + result.soft_skills|length }}</span></h3>{% for skill in result.technical_skills + result.soft_skills %}<span class="chip">{{ skill }}</span>{% else %}<p class="tiny-copy">No clear skills were detected.</p>{% endfor %}<span class="dash-link">Skills detected from your resume →</span></article>
-            <article class="dash-card"><h3><span class="heading-dot red"></span>Missing Skills <span class="count" style="background:#5a3038;color:#ffabb2">{{ result.missing_skills|length }}</span></h3>{% for skill in result.missing_skills %}<span class="chip missing">{{ skill }}</span>{% else %}<p class="tiny-copy">No important comparison skills are missing.</p>{% endfor %}<span class="dash-link">Improve your score by adding genuine skills →</span></article>
-        </div>
-
         <div class="three-grid">
             <article class="dash-card list-card"><h3><span class="heading-dot"></span>Strengths</h3><ul class="output-list">{% for strength in result.strengths %}<li><i class="fas fa-circle-check"></i>{{ strength }}</li>{% else %}<li><i class="fas fa-circle-info"></i>Add clearer projects and achievements.</li>{% endfor %}</ul></article>
             <article class="dash-card list-card"><h3><span class="heading-dot yellow"></span>Weaknesses</h3><ul class="output-list weak-list">{% for weakness in result.weaknesses %}<li><i class="fas fa-circle-exclamation"></i>{{ weakness }}</li>{% else %}<li><i class="fas fa-circle-check"></i>No major core weaknesses found.</li>{% endfor %}</ul></article>
             <article class="dash-card list-card"><h3><span class="heading-dot blue"></span>Suggestions for Improvement</h3><ul class="output-list suggestion-list">{% for suggestion in result.improvements %}<li><i>{{ loop.index }}</i>{{ suggestion }}</li>{% else %}<li><i>1</i>Tailor keywords for each role you apply to.</li>{% endfor %}</ul></article>
         </div>
 
-        <div class="two-grid">
-            <article class="dash-card"><h3><span class="heading-dot blue"></span>Keyword Analysis</h3><div class="keyword-split"><div><h4>FOUND KEYWORDS</h4>{% for skill in result.technical_skills %}<span class="chip">{{ skill }}</span>{% else %}<p class="tiny-copy">No technical keywords</p>{% endfor %}</div><div><h4 class="red-text">MISSING KEYWORDS</h4>{% for skill in result.missing_skills %}<span class="chip missing">{{ skill }}</span>{% else %}<p class="tiny-copy">No missing keywords</p>{% endfor %}</div></div></article>
-            <article class="dash-card"><h3><span class="heading-dot" style="background:#bb6cff"></span>Section Analysis</h3><table class="analysis-table"><tbody>{% for name, found in result.sections.items() %}<tr class="{{ 'bad' if not found else '' }}"><td>{{ name }}</td><td>{{ 'Good ✓' if found else 'Needs Improvement △' }}</td></tr>{% endfor %}</tbody></table></article>
-        </div>
-
-        <div class="four-grid">
-            <article class="dash-card mini-stat"><span class="mini-icon"><i class="fas fa-briefcase"></i></span><p class="mini-value">{{ result.experience_years }}{% if result.experience_years != '—' %} Years{% endif %}</p><p class="mini-label">Relevant Experience</p></article>
-            <article class="dash-card mini-stat"><span class="mini-icon"><i class="fas fa-graduation-cap"></i></span><p class="mini-value">{{ result.education }}</p><p class="mini-label">Education detected</p></article>
-            <article class="dash-card mini-stat"><span class="mini-icon"><i class="fas fa-code"></i></span><p class="mini-value">{{ result.project_count }}</p><p class="mini-label">Projects detected</p></article>
-            <article class="dash-card mini-stat verdict"><p class="card-title">OVERALL VERDICT</p><div class="stars">★★★★<span style="color:#354763">★</span></div><p class="mini-value">{{ result.verdict }}</p></article>
-        </div>
-        <div class="tip"><i class="fas fa-lightbulb"></i>Tip: Focus on adding genuine missing skills and measurable achievements to increase your score.</div>
+        <div class="tip"><i class="fas fa-lightbulb"></i>Tip: Tailor the resume to each role with genuine matching skills, measurable achievements, and clear project outcomes.</div>
     </section>
     {% endif %}
 </main>

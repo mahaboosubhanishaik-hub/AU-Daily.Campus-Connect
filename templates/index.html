@@ -6,14 +6,14 @@
     <div class="col-md-10 col-lg-8 text-center">
         <h1 class="fw-bold mb-3 display-6">Discover Campus Events</h1>
         <p class="text-muted mb-4">Stay updated with the latest happenings in your department and beyond.</p>
-        <form action="{{ url_for('home') }}" method="GET" class="d-flex justify-content-center">
+        <form action="{{ url_for('main.home') }}" method="GET" class="d-flex justify-content-center">
             <div class="input-group shadow-sm rounded-pill overflow-hidden w-100">
                 <span class="input-group-text bg-white border-0 ps-4"><i class="fas fa-search text-muted"></i></span>
                 <input type="text" name="q" class="form-control border-0 py-3" placeholder="Search events, departments..." value="{{ request.args.get('q', '') }}">
                 <button class="btn btn-primary px-4" type="submit">Search</button>
             </div>
         </form>
-        <form action="{{ url_for('home') }}" method="GET" class="d-flex justify-content-center gap-2 mt-3">
+        <form action="{{ url_for('main.home') }}" method="GET" class="d-flex justify-content-center gap-2 mt-3">
             {% if request.args.get('q') %}
             <input type="hidden" name="q" value="{{ request.args.get('q') }}">
             {% endif %}

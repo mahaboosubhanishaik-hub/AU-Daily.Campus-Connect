@@ -14,7 +14,7 @@
             <h6 class="fw-bold mb-1 text-truncate" title="{{ memory.title }}">{{ memory.title }}</h6>
             <div class="d-flex align-items-center mt-1 mb-1">
                 <div class="position-relative d-inline-block me-2">
-                    <a href="{{ url_for('view_profile', student_id=memory.user_id) }}" class="text-decoration-none">
+                    <a href="{{ url_for('main.view_profile', student_id=memory.user_id) }}" class="text-decoration-none">
                         <i class="fas fa-user-circle text-muted fs-6"></i>
                     </a>
                 </div>

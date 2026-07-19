@@ -23,11 +23,11 @@
     <main class="ig-chat">
         <header class="ig-chat-header d-flex align-items-center">
             <a href="{{ url_for('inbox') }}" class="btn btn-light rounded-circle me-2" aria-label="Back to messages"><i class="fas fa-arrow-left"></i></a>
-            <a href="{{ url_for('view_profile', student_id=other_user.student_id) }}" class="d-flex align-items-center text-decoration-none text-dark">
+            <a href="{{ url_for('main.view_profile', student_id=other_user.student_id) }}" class="d-flex align-items-center text-decoration-none text-dark">
                 <img src="{{ url_for('static', filename='media/' + (other_user.profile_pic or 'default.jpg')) }}" class="ig-user-pic rounded-circle me-2" alt="{{ other_user.name }}">
                 <div><div class="fw-bold">{{ other_user.name }}</div><small class="text-muted">Private conversation</small></div>
             </a>
-            <a href="{{ url_for('view_profile', student_id=other_user.student_id) }}" class="btn btn-light rounded-circle ms-auto" title="View profile"><i class="fas fa-user"></i></a>
+            <a href="{{ url_for('main.view_profile', student_id=other_user.student_id) }}" class="btn btn-light rounded-circle ms-auto" title="View profile"><i class="fas fa-user"></i></a>
         </header>
 
         <section class="ig-chat-body" id="chatContainer" aria-label="Messages">

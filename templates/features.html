@@ -7,39 +7,75 @@
         <p class="lead text-muted">Discover the tools and services that make AU Daily an essential part of campus life.</p>
     </div>
 
+    {% set features = [
+        {
+            'icon': 'fa-newspaper',
+            'color': 'bg-primary',
+            'title': 'Campus Feed & Events',
+            'copy': 'Stay updated with campus news, announcements, events, and student posts in one place.'
+        },
+        {
+            'icon': 'fa-book-open',
+            'color': 'bg-success',
+            'title': 'Academic Resources',
+            'copy': 'Access shared notes, previous papers, study materials, and useful academic uploads.'
+        },
+        {
+            'icon': 'fa-file-lines',
+            'color': 'bg-info',
+            'title': 'Resume Analyzer',
+            'copy': 'Analyze resumes for ATS readiness, skills coverage, projects, sections, and role matching.'
+        },
+        {
+            'icon': 'fa-briefcase',
+            'color': 'bg-warning',
+            'title': 'Opportunities',
+            'copy': 'Discover internships, placements, jobs, scholarships, and career-related campus updates.'
+        },
+        {
+            'icon': 'fa-circle-question',
+            'color': 'bg-danger',
+            'title': 'Doubts & Discussions',
+            'copy': 'Ask questions, help classmates, and keep academic discussions organized by topic.'
+        },
+        {
+            'icon': 'fa-square-poll-vertical',
+            'color': 'bg-secondary',
+            'title': 'Polls & Feedback',
+            'copy': 'Collect opinions, share feedback, and help improve campus decisions with quick polls.'
+        },
+        {
+            'icon': 'fa-comments',
+            'color': 'bg-primary',
+            'title': 'Student Chat',
+            'copy': 'Message classmates, manage your inbox, and stay connected with the campus community.'
+        },
+        {
+            'icon': 'fa-images',
+            'color': 'bg-success',
+            'title': 'Gallery',
+            'copy': 'Browse and share campus moments, event photos, and student activity highlights.'
+        },
+        {
+            'icon': 'fa-bell',
+            'color': 'bg-info',
+            'title': 'Notifications',
+            'copy': 'Get timely alerts for messages, events, announcements, and important platform activity.'
+        }
+    ] %}
+
     <div class="row g-4">
-        <!-- Feature 1: Campus Feed -->
+        {% for feature in features %}
         <div class="col-md-6 col-lg-4">
             <div class="card h-100 text-center shadow-sm">
                 <div class="card-body">
-                    <div class="feature-icon bg-primary text-white mx-auto mb-3"><i class="fas fa-newspaper"></i></div>
-                    <h5 class="card-title fw-bold">Campus Feed & Events</h5>
-                    <p class="card-text text-muted">Stay updated with the latest news, announcements, and events happening across the university, all in one place.</p>
+                    <div class="feature-icon {{ feature.color }} text-white mx-auto mb-3"><i class="fas {{ feature.icon }}"></i></div>
+                    <h5 class="card-title fw-bold">{{ feature.title }}</h5>
+                    <p class="card-text text-muted">{{ feature.copy }}</p>
                 </div>
             </div>
         </div>
-
-        <!-- Feature 2: Academic Resources -->
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 text-center shadow-sm">
-                <div class="card-body">
-                    <div class="feature-icon bg-success text-white mx-auto mb-3"><i class="fas fa-book-open"></i></div>
-                    <h5 class="card-title fw-bold">Academic Resources</h5>
-                    <p class="card-text text-muted">Access a shared library of notes, previous papers, and study materials uploaded by peers and faculty.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Feature 3: Smart Resume Analyzer -->
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 text-center shadow-sm">
-                <div class="card-body">
-                    <div class="feature-icon bg-info text-white mx-auto mb-3"><i class="fas fa-robot"></i></div>
-                    <h5 class="card-title fw-bold">AI Resume Analyzer</h5>
-                    <p class="card-text text-muted">Get instant feedback on your resume with our AI-powered tool to improve your job application success rate.</p>
-                </div>
-            </div>
-        </div>
+        {% endfor %}
     </div>
 </div>
 
