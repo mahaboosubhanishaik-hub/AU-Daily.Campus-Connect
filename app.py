@@ -19,6 +19,7 @@ import zipfile
 import json
 import importlib
 import warnings
+import click
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 import xml.etree.ElementTree as ET
@@ -61,6 +62,136 @@ db = SQLAlchemy()
 mail = Mail()
 migrate = Migrate()
 password_reset_serializer = None # Will be initialized in the app factory
+
+
+def local_sqlite_url(app):
+    db_path = os.path.abspath(os.path.join(app.root_path, "app.db"))
+    return f"sqlite:///{db_path.replace(os.sep, '/')}"
+
+
+def development_database_url(app, db_url):
+    """Keep development fast and offline-friendly unless remote DB is explicitly requested."""
+    if is_production or not db_url or db_url.startswith("sqlite"):
+        return db_url
+
+    running_on_render = os.getenv("RENDER", "").lower() in {"1", "true", "yes"}
+    if running_on_render:
+        return db_url
+
+    fallback_enabled = os.getenv("LOCAL_DB_FALLBACK", "false").lower() in {"1", "true", "yes"}
+    use_remote_database = os.getenv("USE_REMOTE_DATABASE", "").lower() in {"1", "true", "yes"}
+    if not fallback_enabled or use_remote_database:
+        return db_url
+
+    fallback_url = local_sqlite_url(app)
+    app.logger.debug(
+        "Using local SQLite for development. Set USE_REMOTE_DATABASE=true to use DATABASE_URL."
+    )
+    return fallback_url
+
+
+def seed_development_accounts(app):
+    """Create local-only starter accounts so development login is not blocked by an empty DB."""
+    if is_production or app.config.get("TESTING"):
+        return
+    if not app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite:///"):
+        return
+    if os.getenv("DEV_BOOTSTRAP_ACCOUNTS", "true").lower() not in {"1", "true", "yes"}:
+        return
+
+    try:
+        with app.app_context():
+            _seed_development_accounts()
+    except Exception:
+        app.logger.exception("Failed to create local development login accounts")
+
+
+def _seed_development_accounts():
+    created = []
+    admin_id = os.getenv("INITIAL_ADMIN_ID", "admin")
+    admin_password = os.getenv("INITIAL_ADMIN_PASSWORD", "Admin@12345")
+    if Admin.query.count() == 0:
+        db.session.add(Admin(
+            admin_id=admin_id,
+            password=generate_password_hash(admin_password),
+        ))
+        created.append(f"admin '{admin_id}'")
+
+    if Student.query.count() == 0:
+        dev_student_id = os.getenv("DEV_STUDENT_ID")
+        allowed_student = None
+        if dev_student_id:
+            allowed_student = AllowedStudent.query.filter_by(student_id=dev_student_id).first()
+        if not allowed_student:
+            allowed_student = AllowedStudent.query.order_by(AllowedStudent.student_id).first()
+
+        if allowed_student:
+            student_id = allowed_student.student_id
+            db.session.add(Student(
+                student_id=student_id,
+                name=os.getenv("DEV_STUDENT_NAME", "Development Student"),
+                department=os.getenv("DEV_STUDENT_DEPARTMENT", "Computer Science & Systems Engineering"),
+                graduation_year=int(os.getenv("DEV_STUDENT_GRADUATION_YEAR", "2026")),
+                email=os.getenv("DEV_STUDENT_EMAIL", "student@example.com"),
+                phone=os.getenv("DEV_STUDENT_PHONE", "9999999999"),
+                password=generate_password_hash(os.getenv("DEV_STUDENT_PASSWORD", "Student@12345")),
+                is_verified=True,
+            ))
+            created.append(f"student '{student_id}'")
+
+    if created:
+        db.session.commit()
+        current_app.logger.warning(
+            "Created local development login accounts: %s. Set DEV_BOOTSTRAP_ACCOUNTS=false to disable.",
+            ", ".join(created),
+        )
+    else:
+        db.session.rollback()
+
+    return
+
+    try:
+        created = []
+        admin_id = os.getenv("INITIAL_ADMIN_ID", "admin")
+        admin_password = os.getenv("INITIAL_ADMIN_PASSWORD", "Admin@12345")
+        if Admin.query.count() == 0:
+            db.session.add(Admin(
+                admin_id=admin_id,
+                password=generate_password_hash(admin_password),
+            ))
+            created.append(f"admin '{admin_id}'")
+
+        if Student.query.count() == 0:
+            dev_student_id = os.getenv("DEV_STUDENT_ID")
+            allowed_student = None
+            if dev_student_id:
+                allowed_student = AllowedStudent.query.filter_by(student_id=dev_student_id).first()
+            if not allowed_student:
+                allowed_student = AllowedStudent.query.order_by(AllowedStudent.student_id).first()
+
+            if allowed_student:
+                student_id = allowed_student.student_id
+                db.session.add(Student(
+                    student_id=student_id,
+                    name=os.getenv("DEV_STUDENT_NAME", "Development Student"),
+                    department=os.getenv("DEV_STUDENT_DEPARTMENT", "Computer Science & Systems Engineering"),
+                    graduation_year=int(os.getenv("DEV_STUDENT_GRADUATION_YEAR", "2026")),
+                    email=os.getenv("DEV_STUDENT_EMAIL", "student@example.com"),
+                    phone=os.getenv("DEV_STUDENT_PHONE", "9999999999"),
+                    password=generate_password_hash(os.getenv("DEV_STUDENT_PASSWORD", "Student@12345")),
+                    is_verified=True,
+                ))
+                created.append(f"student '{student_id}'")
+
+        if created:
+            db.session.commit()
+            app.logger.warning(
+                "Created local development login accounts: %s. Set DEV_BOOTSTRAP_ACCOUNTS=false to disable.",
+                ", ".join(created),
+            )
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Failed to create local development login accounts")
 
 
 def passthrough_wsgi_app(wsgi_app):
@@ -163,8 +294,17 @@ def import_default_allowed_students(app):
     with app.app_context():
         try:
             engine_url = db.engine.url
+            is_local_sqlite = engine_url.drivername.startswith("sqlite")
+            auto_import_remote = os.getenv("AUTO_IMPORT_ALLOWED_STUDENTS", "").lower() in {"1", "true", "yes"}
+            if not is_local_sqlite and not auto_import_remote:
+                app.logger.debug(
+                    "Skipping allowed_students.csv startup import for remote database. "
+                    "Set AUTO_IMPORT_ALLOWED_STUDENTS=true to enable it."
+                )
+                return
+
             if (
-                engine_url.drivername.startswith("sqlite")
+                is_local_sqlite
                 and engine_url.database
                 and engine_url.database != ":memory:"
                 and not os.path.exists(engine_url.database)
@@ -209,6 +349,107 @@ def import_default_allowed_students(app):
         except Exception:
             db.session.rollback()
             app.logger.exception('Failed to import allowed_students.csv')
+
+
+def import_allowed_students_from_csv(csv_path):
+    """Import allowed student IDs from a CSV path and return the number added."""
+    existing_ids = {s.student_id for s in AllowedStudent.query.all()}
+    new_ids = set()
+    encodings = ['utf-8-sig', 'cp1252', 'latin-1']
+
+    for encoding in encodings:
+        try:
+            with open(csv_path, 'r', encoding=encoding, newline='') as f:
+                reader = csv.reader(f)
+                ids_from_this_encoding = {
+                    normalize_allowed_student_id(row[0])
+                    for row in reader
+                    if row
+                }
+            ids_from_this_encoding.discard("")
+            if ids_from_this_encoding:
+                new_ids = ids_from_this_encoding
+                break
+        except UnicodeDecodeError:
+            continue
+
+    ids_to_add = new_ids - existing_ids
+    for student_id in sorted(ids_to_add):
+        db.session.add(AllowedStudent(student_id=student_id))
+    return len(ids_to_add)
+
+
+def register_maintenance_commands(app):
+    @app.cli.command("repair-logins")
+    @click.option("--seed-allowed/--no-seed-allowed", default=True, show_default=True, help="Import IDs from allowed_students.csv.")
+    @click.option("--admin-id", envvar="REPAIR_ADMIN_ID", help="Admin ID to create or reset.")
+    @click.option("--admin-password", envvar="REPAIR_ADMIN_PASSWORD", help="New admin password.")
+    @click.option("--student-id", envvar="REPAIR_STUDENT_ID", help="Student ID to create or reset.")
+    @click.option("--student-password", envvar="REPAIR_STUDENT_PASSWORD", help="New student password.")
+    @click.option("--student-email", envvar="REPAIR_STUDENT_EMAIL", help="Email for a created student.")
+    @click.option("--student-name", envvar="REPAIR_STUDENT_NAME", default="AU Daily Student", show_default=True)
+    @click.option("--student-department", envvar="REPAIR_STUDENT_DEPARTMENT", default="Computer Science & Systems Engineering", show_default=True)
+    @click.option("--student-graduation-year", envvar="REPAIR_STUDENT_GRADUATION_YEAR", default=2026, show_default=True, type=int)
+    def repair_logins(seed_allowed, admin_id, admin_password, student_id, student_password, student_email, student_name, student_department, student_graduation_year):
+        """Seed/reset production login records without dropping existing data."""
+        added_allowed = 0
+        changed = []
+
+        if seed_allowed:
+            csv_path = os.path.join(app.root_path, 'allowed_students.csv')
+            if os.path.exists(csv_path):
+                added_allowed = import_allowed_students_from_csv(csv_path)
+
+        if admin_id or admin_password:
+            if not admin_id or not admin_password:
+                raise click.UsageError("Provide both --admin-id and --admin-password.")
+            if len(admin_password) < 10:
+                raise click.UsageError("Admin password must be at least 10 characters.")
+            admin = Admin.query.filter_by(admin_id=admin_id).first()
+            if not admin:
+                admin = Admin(admin_id=admin_id)
+                db.session.add(admin)
+                changed.append(f"created admin {admin_id}")
+            else:
+                changed.append(f"reset admin {admin_id}")
+            admin.password = generate_password_hash(admin_password)
+
+        if student_id or student_password:
+            if not student_id or not student_password:
+                raise click.UsageError("Provide both --student-id and --student-password.")
+            if len(student_password) < 10:
+                raise click.UsageError("Student password must be at least 10 characters.")
+
+            allowed = AllowedStudent.query.filter_by(student_id=student_id).first()
+            if not allowed:
+                db.session.add(AllowedStudent(student_id=student_id))
+
+            student = Student.query.filter_by(student_id=student_id).first()
+            if not student:
+                if not student_email:
+                    raise click.UsageError("Provide --student-email when creating a new student.")
+                student = Student(
+                    student_id=student_id,
+                    name=student_name,
+                    department=student_department,
+                    graduation_year=student_graduation_year,
+                    email=student_email.strip().lower(),
+                    is_verified=True,
+                )
+                db.session.add(student)
+                changed.append(f"created student {student_id}")
+            else:
+                changed.append(f"reset student {student_id}")
+                if student_email:
+                    student.email = student_email.strip().lower()
+                student.is_verified = True
+            student.password = generate_password_hash(student_password)
+
+        AuthRateLimit.query.filter(AuthRateLimit.key.like("login:%")).delete(synchronize_session=False)
+        db.session.commit()
+
+        click.echo(f"Imported {added_allowed} allowed student IDs.")
+        click.echo("Login repair complete: " + (", ".join(changed) if changed else "no account changes"))
 
 
 def normalize_allowed_student_id(value):
@@ -376,7 +617,7 @@ def remove_uploaded_media(filename):
 
 def verify_password_and_upgrade(account, submitted_password):
     """Verify current hashes and transparently upgrade passwords from legacy data."""
-    stored_password = account.password or ""
+    stored_password = (account.password or "").strip()
     # If there is no password stored in the database, verification must fail.
     if not stored_password:
         return False
@@ -401,8 +642,9 @@ def verify_password_and_upgrade(account, submitted_password):
 def _handle_login_attempt(user_model, user_id_attr, submitted_id, submitted_password, success_redirect_endpoint, failure_message, template_name, csrf_token_func, lookup_attrs=None):
     """
     Handles a generic login attempt for both students and admins.
-    Encapsulates rate limiting, user lookup, password verification, and session setup.
     """
+    submitted_id = (submitted_id or "").strip()
+    submitted_password = submitted_password or ""
     rate_key = login_rate_limit_key(f'{user_model.__name__.lower()}:{submitted_id}')
 
     if login_is_rate_limited(rate_key):
@@ -410,24 +652,25 @@ def _handle_login_attempt(user_model, user_id_attr, submitted_id, submitted_pass
         return render_template(template_name, csrf_token=csrf_token_func), 429
 
     lookup_attrs = lookup_attrs or (user_id_attr,)
+
     filters = [
-        func.lower(getattr(user_model, attr)) == submitted_id.lower()
-        if attr == "email"
-        else getattr(user_model, attr) == submitted_id
+        func.lower(func.trim(getattr(user_model, attr))) == submitted_id.lower()
         for attr in lookup_attrs
     ]
+
     user = user_model.query.filter(or_(*filters)).first()
 
     if user and submitted_password and verify_password_and_upgrade(user, submitted_password):
         clear_login_rate_limit(rate_key)
+        db.session.commit()
         session.clear()
         session[user_model.__name__.lower()] = getattr(user, user_id_attr)
         return redirect(url_for(success_redirect_endpoint, _external=True))
     else:
+        db.session.rollback()
         record_failed_login(rate_key)
         flash(failure_message)
-        return render_template(template_name, csrf_token=csrf_token_func) # Render the login template again on failure
-
+        return render_template(template_name, csrf_token=csrf_token_func)
 DEPARTMENTS = sorted([
     'Civil Engineering',
     'Mechanical Engineering',
@@ -936,18 +1179,33 @@ def fast2sms_otp_request(endpoint, payload):
 def check_upcoming_events(user_id):
     """Checks for events happening tomorrow and creates reminders."""
     today = datetime.now().date()
+    today_key = today.strftime('%Y-%m-%d')
+    if session.get('event_reminders_checked_on') == today_key:
+        return
+
     tomorrow_str = (today + timedelta(days=1)).strftime('%Y-%m-%d')
 
     # Directly query events matching tomorrow's date string
     upcoming_events = Event.query.filter_by(date=tomorrow_str).all()
+    if not upcoming_events:
+        session['event_reminders_checked_on'] = today_key
+        return
+
+    event_ids = [event.id for event in upcoming_events]
+    existing_event_ids = {
+        row[0] for row in db.session.query(Notification.event_id).filter(
+            Notification.user_id == user_id,
+            Notification.type == 'reminder',
+            Notification.event_id.in_(event_ids)
+        ).all()
+    }
 
     for event in upcoming_events:
-        # Check if reminder already exists
-        exists = Notification.query.filter_by(user_id=user_id, event_id=event.id, type='reminder').first()
-        if not exists:
+        if event.id not in existing_event_ids:
             msg = f"Reminder: '{event.title}' is happening tomorrow!"
             db.session.add(Notification(user_id=user_id, message=msg, type='reminder', event_id=event.id))
     db.session.commit()
+    session['event_reminders_checked_on'] = today_key
 
 # =========================
 # HOME PAGE
@@ -3397,18 +3655,45 @@ def student_dashboard():
 
     student_id = session['student']
     student = Student.query.filter_by(student_id=student_id).first()
+    if not student:
+        session.clear()
+        return redirect(url_for('auth.student_login'))
 
     events_registered = EventRegistration.query.filter_by(user_id=student_id).count()
     polls_voted = PollVote.query.filter_by(user_id=student_id).count()
     doubts_asked = AnonymousDoubt.query.filter_by(user_id=student_id).count()
     doubts_replied = DoubtReply.query.filter_by(user_id=student_id).count()
+    total_tasks = Task.query.filter_by(user_id=student_id).count()
+    completed_tasks = Task.query.filter_by(user_id=student_id, is_completed=True).count()
+    pending_tasks = max(total_tasks - completed_tasks, 0)
+
+    chart_labels = []
+    chart_tasks = []
+    current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    for offset in range(5, -1, -1):
+        month_seed = current_month - timedelta(days=offset * 31)
+        month_start = month_seed.replace(day=1)
+        next_month = datetime(month_start.year + (month_start.month // 12), (month_start.month % 12) + 1, 1)
+        chart_labels.append(month_start.strftime('%b'))
+        chart_tasks.append(
+            Task.query.filter(
+                Task.user_id == student_id,
+                Task.timestamp >= month_start,
+                Task.timestamp < next_month
+            ).count()
+        )
 
     return render_template("student_dashboard.html",
                            student=student,
                            events_registered=events_registered,
                            polls_voted=polls_voted,
                            doubts_asked=doubts_asked,
-                           doubts_replied=doubts_replied)
+                           doubts_replied=doubts_replied,
+                           total_tasks=total_tasks,
+                           completed_tasks=completed_tasks,
+                           pending_tasks=pending_tasks,
+                           chart_labels=chart_labels,
+                           chart_tasks=chart_tasks)
 
 @bp.route('/api/user_preview/<string:student_id>')
 def user_preview(student_id):
@@ -4703,11 +4988,12 @@ def create_app(config_object=None):
         if is_production:
             raise RuntimeError("FATAL ERROR: DATABASE_URL not found in .env file.")
 
-        db_path = os.path.abspath(os.path.join(app.root_path, "app.db"))
-        db_url = f"sqlite:///{db_path.replace(os.sep, '/')}"
+        db_url = local_sqlite_url(app)
         app.logger.warning(
             "DATABASE_URL is not set; using a local SQLite database for development."
         )
+    else:
+        db_url = development_database_url(app, db_url)
 
     public_base_url = (os.getenv("PUBLIC_BASE_URL") or "").rstrip("/")
     if public_base_url:
@@ -4780,6 +5066,12 @@ def create_app(config_object=None):
     db.init_app(app)
     mail.init_app(app)
     migrate.init_app(app, db)
+    register_maintenance_commands(app)
+
+    using_local_sqlite = app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite:///")
+    if not is_production and using_local_sqlite:
+        with app.app_context():
+            db.create_all()
 
     app.jinja_env.filters['time_ago'] = time_ago
     app.jinja_env.filters['display_time'] = time_ago  # Alias for time_ago
@@ -4800,28 +5092,32 @@ def create_app(config_object=None):
         admin_unread_count = 0
         current_user_pic = None
 
-        if "student" in session:
-            unread_count = Notification.query.filter_by(
-                user_id=session["student"],
-                is_read=False
-            ).count()
+        try:
+            if "student" in session:
+                unread_count = Notification.query.filter_by(
+                    user_id=session["student"],
+                    is_read=False
+                ).count()
 
-            unread_message_count = PrivateMessage.query.filter_by(
-                receiver_id=session["student"],
-                is_read=False
-            ).count()
+                unread_message_count = PrivateMessage.query.filter_by(
+                    receiver_id=session["student"],
+                    is_read=False
+                ).count()
 
-            student = Student.query.filter_by(
-                student_id=session["student"]
-            ).first()
+                student = Student.query.filter_by(
+                    student_id=session["student"]
+                ).first()
 
-            if student and student.profile_pic:
-                current_user_pic = student.profile_pic
+                if student and student.profile_pic:
+                    current_user_pic = student.profile_pic
 
-        elif "admin" in session:
-            admin_unread_count = AdminNotification.query.filter_by(
-                is_read=False
-            ).count()
+            elif "admin" in session:
+                admin_unread_count = AdminNotification.query.filter_by(
+                    is_read=False
+                ).count()
+        except Exception:
+            db.session.rollback()
+            app.logger.warning("Global navigation counters are unavailable for this request.", exc_info=True)
 
         return dict(
             csrf_token=csrf_token,
@@ -5018,6 +5314,7 @@ def create_app(config_object=None):
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
     import_default_allowed_students(app)
+    seed_development_accounts(app)
 
     return app
 
