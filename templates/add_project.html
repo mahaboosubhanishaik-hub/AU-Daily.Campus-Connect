@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-0 shadow-lg rounded-4">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="fas fa-code-branch fa-lg"></i>
+                    </div>
+                    <h3 class="fw-bold">Add Your Project</h3>
+                    <p class="text-muted">Showcase your academic or personal projects.</p>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted ps-1">PROJECT TITLE *</label>
+                        <input type="text" name="title" class="form-control bg-light border-0 py-2 rounded-3" placeholder="e.g. Smart Campus Navigation App" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted ps-1">DESCRIPTION *</label>
+                        <textarea name="description" class="form-control bg-light border-0 py-2 rounded-3" rows="4" placeholder="Describe your project, its features, and your role..." required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted ps-1">TECHNOLOGIES USED (Comma-separated)</label>
+                        <input type="text" name="technologies" class="form-control bg-light border-0 py-2 rounded-3" placeholder="e.g. Python, Flask, MySQL, HTML, CSS">
+                        <div class="form-text small text-muted ms-1">Separate multiple technologies with commas.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted ps-1">GITHUB REPO LINK (Optional)</label>
+                        <input type="url" name="github_link" class="form-control bg-light border-0 py-2 rounded-3" placeholder="https://github.com/your-project">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted ps-1">LIVE DEMO LINK (Optional)</label>
+                        <input type="url" name="live_demo_link" class="form-control bg-light border-0 py-2 rounded-3" placeholder="https://your-live-demo.com">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted ps-1">PROJECT IMAGE (Optional)</label>
+                        <input type="file" name="image" class="form-control bg-light border-0 rounded-3" accept="image/*">
+                        <div class="form-text small text-muted ms-1">Upload a screenshot or cover image for your project.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-muted ps-1">PROJECT VIDEO (Optional)</label>
+                        <input type="file" name="video" class="form-control bg-light border-0 rounded-3" accept="video/*">
+                        <div class="form-text small text-muted ms-1">Upload a short video demo of your project.</div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary rounded-pill py-2 fw-bold shadow-sm">Publish Project</button>
+                        <a href="{{ url_for('main.projects') }}" class="btn btn-light rounded-pill py-2 text-muted">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

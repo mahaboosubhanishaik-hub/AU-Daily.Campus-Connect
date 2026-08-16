@@ -4,12 +4,12 @@
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
       <h3 class="fw-bold mb-1">Recovery Requests</h3>
-      <p class="text-muted mb-0">Review who requested recovery, verify identity, then generate a temporary password.</p>
+      <p class="text-muted mb-0">Pending means the student request reached admin and is waiting for your verification.</p>
     </div>
     <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
   </div>
   <div class="alert alert-warning small">
-    Verify the student through an official channel before generating a temporary password.
+    Admin recovery requests intentionally stay <strong>Pending</strong> until you verify the student and click <strong>Verify & Generate Password</strong>.
   </div>
   <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
     <div class="table-responsive">
@@ -21,6 +21,7 @@
             <th>Contact note</th>
             <th>Requested</th>
             <th>Status</th>
+            <th>Reviewed</th>
             <th></th>
           </tr>
         </thead>
@@ -35,6 +36,13 @@
               <span class="badge text-bg-{% if item.status == 'Pending' %}warning{% else %}success{% endif %}">
                 {{ item.status }}
               </span>
+            </td>
+            <td class="small text-muted">
+              {% if item.reviewed_at %}
+                {{ item.reviewed_at | time_ago }} by {{ item.reviewed_by or 'Admin' }}
+              {% else %}
+                Not reviewed yet
+              {% endif %}
             </td>
             <td>
               {% if item.status == 'Pending' %}
@@ -51,7 +59,7 @@
           </tr>
           {% else %}
           <tr>
-            <td colspan="6" class="text-center text-muted py-5">No recovery requests.</td>
+            <td colspan="7" class="text-center text-muted py-5">No recovery requests.</td>
           </tr>
           {% endfor %}
         </tbody>

@@ -27,7 +27,241 @@
             document.documentElement.setAttribute('data-bs-theme', 'dark');
         }
     </script>
+    <!-- App Navigation Styles -->
     <style>
+        .app-navbar {
+            padding: .55rem 0 .6rem;
+        }
+        .app-nav-shell {
+            display: flex;
+            flex-direction: column;
+            gap: .55rem;
+            width: 100%;
+        }
+        .app-nav-top {
+            display: grid;
+            grid-template-columns: auto minmax(260px, 520px) auto 1fr;
+            align-items: center;
+            gap: .8rem;
+            width: 100%;
+        }
+        .app-nav-actions {
+            justify-self: end;
+            display: flex;
+            align-items: center;
+            gap: .45rem;
+        }
+        .app-nav-row {
+            display: flex;
+            align-items: center;
+            gap: .45rem;
+            overflow-x: auto;
+            padding: .15rem .05rem .05rem;
+            scrollbar-width: none;
+        }
+        .app-nav-row::-webkit-scrollbar {
+            display: none;
+        }
+        .app-nav-links {
+            gap: .45rem;
+            flex-wrap: nowrap;
+            width: 100%;
+        }
+        .app-nav-links .nav-link,
+        .app-nav-top > .nav-link {
+            display: flex;
+            align-items: center;
+            gap: .45rem;
+            color: #334155;
+            font-weight: 700;
+            padding: .52rem .78rem;
+            border-radius: 999px;
+            position: relative;
+            transition: background-color .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease;
+            white-space: nowrap;
+            border: 1px solid rgba(15, 23, 42, .07);
+            background: rgba(255, 255, 255, .72);
+        }
+        .app-nav-links .nav-link:hover,
+        .app-nav-top > .nav-link:hover {
+            background-color: #ffffff;
+            color: #155eef;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+        }
+        .app-nav-links .nav-link.active,
+        .app-nav-top > .nav-link.active {
+            background: linear-gradient(135deg, #155eef, #4338ca);
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(37, 99, 235, .18);
+        }
+        .app-nav-links .nav-link i,
+        .app-nav-top > .nav-link i {
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            border-radius: 999px;
+            background: var(--nav-icon-bg, #eff6ff);
+            color: var(--nav-icon-color, #155eef);
+            flex: 0 0 auto;
+            font-size: .82rem;
+        }
+        .app-nav-links .nav-link.active i,
+        .app-nav-top > .nav-link.active i {
+            background: rgba(255,255,255,.18);
+            color: #fff;
+        }
+        .nav-dashboard { --nav-icon-bg: #dbeafe; --nav-icon-color: #155eef; }
+        .nav-news { --nav-icon-bg: #fee2e2; --nav-icon-color: #dc2626; }
+        .nav-projects { --nav-icon-bg: #ede9fe; --nav-icon-color: #7c3aed; }
+        .nav-skill { --nav-icon-bg: #dcfce7; --nav-icon-color: #16a34a; }
+        .nav-career { --nav-icon-bg: #fef3c7; --nav-icon-color: #d97706; }
+        .nav-resources { --nav-icon-bg: #e0f2fe; --nav-icon-color: #0284c7; }
+        .nav-lost { --nav-icon-bg: #ffe4e6; --nav-icon-color: #e11d48; }
+        .nav-polls { --nav-icon-bg: #ccfbf1; --nav-icon-color: #0f766e; }
+        .nav-doubts { --nav-icon-bg: #f3e8ff; --nav-icon-color: #9333ea; }
+        .nav-resume { --nav-icon-bg: #fef9c3; --nav-icon-color: #ca8a04; }
+        .main-content {
+            padding-top: 132px;
+            width: 100%;
+        }
+        .mobile-bottom-nav {
+            display: none;
+        }
+        .navbar .container {
+            max-width: 1440px;
+        }
+        .navbar-brand {
+            min-width: max-content;
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+        .navbar-brand img {
+            height: 36px;
+            width: 36px;
+            object-fit: cover;
+        }
+        @media (max-width: 1199.98px) {
+            .app-nav-top {
+                grid-template-columns: auto minmax(220px, 1fr) auto auto;
+            }
+            .app-nav-links .nav-link {
+                padding: .45rem .55rem;
+                font-size: .92rem;
+            }
+        }
+        @media (max-width: 991.98px) {
+            body {
+                padding-bottom: 76px;
+            }
+            .navbar {
+                min-height: 108px;
+                padding: .45rem 0;
+            }
+            .navbar .container {
+                padding-left: .85rem;
+                padding-right: .85rem;
+            }
+            .navbar-brand {
+                font-size: 1.12rem;
+            }
+            .navbar-brand img {
+                height: 28px;
+            }
+            .navbar-toggler {
+                display: none;
+            }
+            .navbar-collapse {
+                display: flex !important;
+                flex-basis: auto;
+            }
+            .app-nav-shell,
+            .app-nav-top,
+            .app-nav-row {
+                display: flex;
+                width: 100%;
+            }
+            .app-nav-shell {
+                gap: .4rem;
+            }
+            .app-nav-top {
+                gap: .5rem;
+            }
+            .app-nav-actions {
+                margin-left: auto;
+            }
+            .app-nav-top > .nav-link {
+                display: none;
+            }
+            .app-nav-links {
+                display: flex;
+                flex-direction: row;
+                gap: .35rem;
+                overflow-x: auto;
+                padding-bottom: .1rem;
+                scrollbar-width: none;
+            }
+            .app-nav-links::-webkit-scrollbar {
+                display: none;
+            }
+            .app-nav-links .nav-link {
+                padding: .4rem .58rem;
+                font-size: .78rem;
+                gap: .32rem;
+            }
+            .app-nav-links .nav-link i {
+                width: 20px;
+                height: 20px;
+                font-size: .7rem;
+            }
+            .main-content {
+                padding-top: 110px;
+            }
+            .mobile-bottom-nav {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 1040;
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                height: 64px;
+                padding: .35rem .4rem max(.35rem, env(safe-area-inset-bottom));
+                background: rgba(255,255,255,.96);
+                border-top: 1px solid rgba(15,23,42,.1);
+                box-shadow: 0 -10px 28px rgba(15,23,42,.08);
+            }
+            .mobile-bottom-nav a,
+            .mobile-bottom-nav button {
+                border: 0;
+                background: transparent;
+                color: #111827;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 0;
+                height: 48px;
+                text-decoration: none;
+                font-size: 1.2rem;
+                border-radius: 12px;
+                position: relative;
+            }
+            .mobile-bottom-nav .active {
+                color: #155eef;
+                background: #eef5ff;
+            }
+            .mobile-bottom-nav .mobile-avatar {
+                width: 26px;
+                height: 26px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid currentColor;
+            }
+        }
+
         /* --- Elegant Professional Theme Overrides --- */
         :root {
             --bs-primary: #2563eb;
@@ -113,73 +347,6 @@
             color: #64748b;
         }
 
-        /* Mobile Bottom Nav Styles */
-        .mobile-bottom-nav {
-            position: fixed;
-            bottom: 15px;
-            left: 15px;
-            right: 15px;
-            height: 65px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            z-index: 1040;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-radius: 2rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        .nav-item-mobile {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: var(--bs-secondary);
-            text-decoration: none;
-            font-size: 0.75rem;
-            font-weight: 500;
-            flex-grow: 1;
-            height: 100%;
-            transition: color 0.3s ease;
-        }
-        .nav-item-mobile.active, .nav-item-mobile:hover {
-            color: var(--bs-primary);
-        }
-        .nav-item-mobile i {
-            font-size: 1.25rem;
-            margin-bottom: 4px;
-            transition: transform 0.3s ease;
-        }
-        .nav-item-mobile:hover i {
-            transform: translateY(-3px);
-        }
-        .mobile-fab {
-            position: absolute;
-            top: -25px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 55px;
-            height: 55px;
-            background: var(--bs-primary);
-            color: white !important;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
-            border: 4px solid #fff;
-            font-size: 1.5rem;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .mobile-fab:hover {
-            transform: translateX(-50%) translateY(-5px) scale(1.1);
-            box-shadow: 0 12px 25px rgba(13, 148, 136, 0.5);
-        }
-        .mobile-fab:active {
-            transform: translateX(-50%) scale(0.9) rotate(45deg);
-        }
         /* Smooth Page Load Animation */
         @keyframes fadeSlideUp {
             0% { opacity: 0; transform: translateY(15px); }
@@ -189,11 +356,6 @@
             animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         /* Body padding for mobile to prevent content hiding behind bottom nav */
-        @media (max-width: 991.98px) {
-            body {
-                padding-bottom: 80px !important;
-            }
-        }
         .report-fab {
             position: fixed;
             right: 24px;
@@ -204,62 +366,103 @@
         }
         @media (max-width: 991.98px) {
             .report-fab {
-                right: 16px;
-                bottom: 92px;
+                right: 14px;
+                bottom: 78px;
+                padding: .48rem .7rem !important;
+            }
+            .report-fab i {
+                margin-right: 0 !important;
+            }
+            .report-fab {
+                font-size: 0;
+            }
+            .report-fab i {
+                font-size: 1rem;
+            }
+        }
+        .global-search-form {
+            width: 100%;
+            min-width: 0;
+        }
+        .global-search-form .input-group {
+            border: 1px solid rgba(37, 99, 235, .16);
+            border-radius: 999px;
+            overflow: hidden;
+            background: #fff;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .07);
+        }
+        .global-search-form .input-group-text,
+        .global-search-form .form-control {
+            background: transparent;
+            border: 0;
+        }
+        @media (max-width: 991.98px) {
+            .global-search-form {
+                display: none;
+            }
+        }
+        @media (max-width: 991.98px) {
+            body {
+                letter-spacing: 0;
+                -webkit-font-smoothing: auto;
+                -moz-osx-font-smoothing: auto;
+                text-rendering: optimizeLegibility;
+            }
+            .navbar {
+                background: #ffffff !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+            .card:hover,
+            .hover-banner:hover {
+                transform: none;
             }
         }
     </style>
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top app-navbar" style="z-index: 1032;">
         <div class="container">
-            <a class="navbar-brand text-primary d-flex align-items-center" href="{{ url_for('home') }}">
-                <img src="{{ url_for('static', filename='AUlogo.jpg') }}" alt="AU Logo" height="32" class="me-2 rounded">
-                AUDaily
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('home') }}">Home</a></li>
-                    
+            <div class="app-nav-shell">
+                <div class="app-nav-top">
+                    <a class="navbar-brand text-primary d-flex align-items-center" href="{{ url_for('main.home') }}">
+                        <img src="{{ url_for('static', filename='AUlogo.jpg') }}" alt="AU Logo" class="me-2 rounded">
+                        AUDaily
+                    </a>
                     {% if session.get('student') or session.get('admin') %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('campus_news') }}">News</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('polls') }}">Polls</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('resources') }}">Resources</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('opportunities') }}">Opportunities</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('doubts') }}">Doubts</a></li>
-                        <li class="nav-item ms-lg-2"><a class="nav-link text-warning fw-bold" href="{{ url_for('resume_analyzer') }}"><i class="fas fa-file-lines me-1"></i> Resume Analyzer</a></li>
+                    <form action="{{ url_for('main.global_search') }}" method="GET" class="global-search-form">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text ps-3"><i class="fas fa-search text-muted"></i></span>
+                            <input class="form-control py-2" type="search" name="q" placeholder="Search events, news, people, resources..." aria-label="Search" value="{{ request.args.get('q', '') }}">
+                        </div>
+                    </form>
+                    <a class="nav-link nav-dashboard {% if request.endpoint in ['main.home', 'main.event_detail', 'main.admin_dashboard'] %}active{% endif %}" href="{% if session.get('admin') %}{{ url_for('main.admin_dashboard') }}{% else %}{{ url_for('main.home') }}{% endif %}"><i class="fas fa-house-chimney"></i>Dashboard</a>
+                    {% else %}
+                    <div></div>
+                    <div></div>
                     {% endif %}
-
+                    <div class="app-nav-actions">
                     {% if session.get('student') %}
-                        <li class="nav-item mx-2 d-none d-lg-flex align-items-center">
-                            <a class="btn btn-primary btn-sm rounded-pill shadow-sm px-3" href="{{ url_for('add_event') }}">
-                                <i class="fas fa-plus me-1"></i> Post Event
-                            </a>
-                        </li>
-                        <li class="nav-item position-relative mx-2">
-                            <a class="nav-link" href="{{ url_for('notifications') }}">
-                                <i class="fas fa-bell"></i>
-                                {% if unread_count and unread_count > 0 %}
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">
-                                    {{ unread_count }}
-                                </span>
-                                {% endif %}
-                            </a>
-                        </li>
-                        <li class="nav-item position-relative mx-2">
-                            <a class="nav-link" href="{{ url_for('inbox') }}">
-                                <i class="fas fa-envelope"></i>
-                                {% if unread_message_count and unread_message_count > 0 %}
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">{{ unread_message_count }}</span>
-                                {% endif %}
-                            </a>
-                        </li>
-                        <li class="nav-item dropdown ms-2">
-                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                        <a class="btn btn-primary btn-sm rounded-pill shadow-sm px-3 d-none d-lg-inline-flex align-items-center" href="{{ url_for('add_event') }}">
+                            <i class="fas fa-plus me-1"></i> Post Event
+                        </a>
+                        <a class="nav-link position-relative" href="{{ url_for('notifications') }}" aria-label="Notifications">
+                            <i class="fas fa-bell"></i>
+                            {% if unread_count and unread_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">
+                                {{ unread_count }}
+                            </span>
+                            {% endif %}
+                        </a>
+                        <a class="nav-link position-relative" href="{{ url_for('inbox') }}" aria-label="Messages">
+                            <i class="fas fa-envelope"></i>
+                            {% if unread_message_count and unread_message_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">{{ unread_message_count }}</span>
+                            {% endif %}
+                        </a>
+                        <div class="dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-label="Profile menu">
                                 <div class="position-relative d-inline-block">
                                     {% if current_user_pic %}
                                     <img src="{{ url_for('static', filename='media/' + current_user_pic) }}" class="rounded-circle object-fit-cover shadow-sm border border-white" style="width: 32px; height: 32px;">
@@ -271,49 +474,88 @@
                                 </div>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg">
-                                <li><a class="dropdown-item" href="{{ url_for('student_profile') }}"><i class="fas fa-id-badge me-2 text-muted"></i> My Profile</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('main.student_profile') }}"><i class="fas fa-id-badge me-2 text-muted"></i> My Profile</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('gallery') }}"><i class="fas fa-images me-2 text-success"></i> Gallery</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('feedback') }}"><i class="fas fa-lightbulb me-2 text-muted"></i> Feedback</a></li>
                                 <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#reportModal"><i class="fas fa-flag me-2 text-danger"></i> Report an Issue</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+                                <li>
+                                    <form action="{{ url_for('auth.logout') }}" method="POST" class="m-0">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="dropdown-item text-danger"><i class="fas fa-sign-out-alt me-2"></i> Logout</button>
+                                    </form>
+                                </li>
                             </ul>
-                        </li>
+                        </div>
                     {% elif session.get('admin') %}
-                        <li class="nav-item mx-2 d-none d-lg-flex align-items-center">
-                            <a class="btn btn-primary btn-sm rounded-pill shadow-sm px-3" href="{{ url_for('add_event') }}">
-                                <i class="fas fa-plus me-1"></i> Post Event
-                            </a>
-                        </li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
-                        <li class="nav-item position-relative mx-2">
-                            <a class="nav-link" href="{{ url_for('admin_notifications') }}">
-                                <i class="fas fa-bell"></i>
-                                {% if admin_unread_count and admin_unread_count > 0 %}
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">
-                                    {{ admin_unread_count }}
-                                </span>
-                                {% endif %}
-                            </a>
-                        </li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('gallery') }}">Gallery</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_profile') }}">Profile</a></li>
-                        <li class="nav-item"><a class="nav-link text-danger" href="{{ url_for('logout') }}">Logout</a></li>
+                        <a class="btn btn-primary btn-sm rounded-pill shadow-sm px-3 d-none d-lg-inline-flex align-items-center" href="{{ url_for('add_event') }}">
+                            <i class="fas fa-plus me-1"></i> Post Event
+                        </a>
+                        <a class="nav-link position-relative" href="{{ url_for('admin_notifications') }}" aria-label="Notifications">
+                            <i class="fas fa-bell"></i>
+                            {% if admin_unread_count and admin_unread_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">
+                                {{ admin_unread_count }}
+                            </span>
+                            {% endif %}
+                        </a>
+                        <a class="nav-link" href="{{ url_for('main.admin_profile') }}">Profile</a>
+                        <form action="{{ url_for('auth.logout') }}" method="POST" class="m-0">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="nav-link text-danger border-0 bg-transparent">Logout</button>
+                        </form>
                     {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin_login') }}">Admin Login</a>
-                        </li>
-                        <li class="nav-item ms-3">
-                            <a class="btn btn-primary rounded-pill px-4 shadow-sm" href="{{ url_for('student_login') }}">Login</a>
-                        </li>
+                        <a class="nav-link" href="{{ url_for('main.admin_login') }}">Admin Login</a>
+                        <a class="btn btn-primary rounded-pill px-4 shadow-sm" href="{{ url_for('auth.student_login') }}">Login</a>
                     {% endif %}
+                    </div>
+                </div>
+                {% if session.get('student') or session.get('admin') %}
+                <div class="app-nav-row">
+                <ul class="navbar-nav app-nav-links align-items-lg-center">
+                    <li class="nav-item">
+                        <a class="nav-link nav-news {% if request.endpoint == 'main.campus_news' %}active{% endif %}" href="{{ url_for('main.campus_news') }}"><i class="fas fa-newspaper"></i>News</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-projects {% if request.endpoint == 'main.projects' %}active{% endif %}" href="{{ url_for('main.projects') }}"><i class="fas fa-laptop-code"></i>Projects</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-skill {% if request.endpoint == 'main.skill_exchange_hub' %}active{% endif %}" href="{{ url_for('main.skill_exchange_hub') }}"><i class="fas fa-hands-helping"></i>Skills</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-career {% if request.endpoint == 'main.opportunities' %}active{% endif %}" href="{{ url_for('main.opportunities') }}"><i class="fas fa-briefcase"></i>Careers</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-resources {% if request.endpoint == 'main.resources' %}active{% endif %}" href="{{ url_for('main.resources') }}"><i class="fas fa-book-open"></i>Resources</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-polls {% if request.endpoint == 'main.polls' %}active{% endif %}" href="{{ url_for('main.polls') }}"><i class="fas fa-square-poll-vertical"></i>Polls</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-doubts {% if request.endpoint == 'main.doubts' %}active{% endif %}" href="{{ url_for('main.doubts') }}"><i class="fas fa-circle-question"></i>Doubts</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-lost {% if request.endpoint == 'main.lost_found' %}active{% endif %}" href="{{ url_for('main.lost_found') }}"><i class="fas fa-location-dot"></i>Lost & Found</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-resume {% if request.endpoint == 'main.resume_analyzer' %}active{% endif %}" href="{{ url_for('main.resume_analyzer') }}"><i class="fas fa-file-lines"></i>Resume Analyzer</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-skill {% if request.endpoint == 'main.gallery' %}active{% endif %}" href="{{ url_for('gallery') }}"><i class="fas fa-images"></i>Gallery</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-dashboard {% if request.endpoint == 'main.feedback' %}active{% endif %}" href="{{ url_for('feedback') }}"><i class="fas fa-lightbulb"></i>Feedback</a>
+                    </li>
                 </ul>
+                </div>
+                {% endif %}
             </div>
         </div>
     </nav>
 
-    <!-- Global Announcements & Flash Messages -->
-    <div class="container" style="margin-top: 90px;">
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <div class="container-fluid">
         <!-- AU 100 Years Banner -->
         {% if not session.get('student') and not session.get('admin') %}
         <div id="auCentenaryBanner" class="alert alert-dismissible fade show shadow border-0 align-items-center mb-3 d-none position-relative overflow-hidden hover-banner" role="alert" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #5c3a21;">
@@ -367,8 +609,10 @@
                         welcomeBadge.classList.remove('d-none');
                     }
                     
-                     // Add 'show' class to trigger fade-in animation
-                    setTimeout(() => banner.querySelector('#auCentenaryBadge').classList.add('show'), 100);
+                    const bannerBadge = banner.querySelector('#auCentenaryBadge');
+                    if (bannerBadge) {
+                        setTimeout(() => bannerBadge.classList.add('show'), 100);
+                    }
                     
                     // Generate continuous CSS Confetti inside the banner
                     const container = banner.querySelector('.confetti-container');
@@ -422,12 +666,12 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
-    </div>
-
-    <!-- Main Content -->
-    <div class="{% if request.endpoint and request.endpoint.startswith('admin_') or request.endpoint in ['view_allowed_students'] %}container-fluid{% else %}container{% endif %} py-4 mb-5 fade-in-content">
-        {% block content %}{% endblock %}
-    </div>
+        
+            <div class="{% block content_wrapper_class %}feed-container{% endblock %}">
+            {% block content %}{% endblock %}
+            </div>
+        </div>
+    </main>
 
     {% if session.get('student') %}
     <button type="button" class="btn btn-danger report-fab px-3 py-2" data-bs-toggle="modal" data-bs-target="#reportModal">
@@ -435,33 +679,36 @@
     </button>
     {% endif %}
 
-    <!-- Mobile Bottom Navigation -->
     {% if session.get('student') or session.get('admin') %}
-    <nav class="mobile-bottom-nav d-lg-none">
-        <a href="{{ url_for('home') }}" class="nav-item-mobile {% if request.endpoint == 'home' %}active{% endif %}">
-            <i class="fas fa-home"></i>
-            <span>Home</span>
+    <nav class="mobile-bottom-nav d-lg-none" aria-label="Mobile app navigation">
+        <a href="{% if session.get('admin') %}{{ url_for('main.admin_dashboard') }}{% else %}{{ url_for('main.home') }}{% endif %}" class="{% if request.endpoint in ['main.home', 'main.event_detail', 'main.admin_dashboard'] %}active{% endif %}" aria-label="Dashboard">
+            <i class="fas fa-house-chimney"></i>
         </a>
-        <a href="{{ url_for('campus_news') }}" class="nav-item-mobile {% if request.endpoint == 'campus_news' %}active{% endif %}">
+        <a href="{{ url_for('main.campus_news') }}" class="{% if request.endpoint == 'main.campus_news' %}active{% endif %}" aria-label="News">
             <i class="fas fa-newspaper"></i>
-            <span>News</span>
         </a>
-        <div class="nav-item-mobile position-relative" style="flex-grow: 0.5;">
-            <a href="{{ url_for('add_event') }}" class="mobile-fab shadow">
-                <i class="fas fa-plus m-0"></i>
-            </a>
-        </div>
-        <a href="{{ url_for('inbox') }}" class="nav-item-mobile position-relative {% if request.endpoint in ['inbox', 'chat'] %}active{% endif %}">
-            <i class="fas fa-envelope"></i>
+        <a href="{{ url_for('add_event') }}" aria-label="Post event">
+            <i class="fas fa-square-plus"></i>
+        </a>
+        <a href="{{ url_for('inbox') }}" class="{% if request.endpoint in ['main.inbox', 'main.chat'] %}active{% endif %}" aria-label="Messages">
+            <i class="fas fa-paper-plane"></i>
             {% if unread_message_count and unread_message_count > 0 %}
-            <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.5rem; margin-top: 5px;">{{ unread_message_count }}</span>
+            <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.55rem;">{{ unread_message_count }}</span>
             {% endif %}
-            <span>Chat</span>
         </a>
-        <a href="{% if session.get('student') %}{{ url_for('student_profile') }}{% else %}{{ url_for('admin_profile') }}{% endif %}" class="nav-item-mobile {% if request.endpoint in ['student_profile', 'admin_profile', 'view_profile', 'student_settings'] %}active{% endif %}">
-            <i class="fas fa-user"></i>
-            <span>Profile</span>
+        {% if session.get('student') %}
+        <a href="{{ url_for('main.student_profile') }}" class="{% if request.endpoint in ['main.student_profile', 'main.view_profile', 'main.student_settings'] %}active{% endif %}" aria-label="Profile">
+            {% if current_user_pic %}
+            <img src="{{ url_for('static', filename='media/' + current_user_pic) }}" class="mobile-avatar" alt="">
+            {% else %}
+            <i class="fas fa-circle-user"></i>
+            {% endif %}
         </a>
+        {% else %}
+        <a href="{{ url_for('main.admin_profile') }}" class="{% if request.endpoint == 'main.admin_profile' %}active{% endif %}" aria-label="Profile">
+            <i class="fas fa-circle-user"></i>
+        </a>
+        {% endif %}
     </nav>
     {% endif %}
 
@@ -494,15 +741,60 @@
                 navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
                         console.log('ServiceWorker registration successful');
+                        registration.update();
                     })
                     .catch(err => {
                         console.log('ServiceWorker registration failed: ', err);
                     });
             });
         }
+
+        if ('caches' in window) {
+            caches.keys().then(cacheNames => {
+                cacheNames
+                    .filter(cacheName => /^au-daily-cache-v[12]$/.test(cacheName))
+                    .forEach(cacheName => caches.delete(cacheName));
+            });
+        }
+
+        function clearStaleModalState() {
+            if (!document.querySelector('.modal.show')) {
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+                document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', clearStaleModalState);
+        window.addEventListener('pageshow', clearStaleModalState);
+        document.addEventListener('hidden.bs.modal', clearStaleModalState);
     </script>
 
+    {% if session.get('student') %}
+    <script>
+        // Real-time notifications via Server-Sent Events
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!!window.EventSource) {
+                const source = new EventSource('/stream');
+                source.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    // Ask for permission if not already granted
+                    if (Notification.permission !== 'granted') {
+                        Notification.requestPermission();
+                    }
+                    // Create a browser notification
+                    new Notification('AU Daily Notification', {
+                        body: data.message,
+                        icon: "{{ url_for('static', filename='AUlogo.jpg') }}"
+                    });
+                };
+            }
+        });
+    </script>
+    {% endif %}
     <!-- Modals Block -->
     {% block modals %}{% endblock %}
+    {% block scripts %}{% endblock %}
 </body>
 </html>

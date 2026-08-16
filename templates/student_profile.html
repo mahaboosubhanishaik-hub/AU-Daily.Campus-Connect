@@ -63,7 +63,9 @@
                                 <small class="text-muted">{{ event.date }}</small>
                                 <span class="badge bg-light text-dark border">{{ event.department }}</span>
                             </div>
-                            <h6 class="fw-bold text-truncate">{{ event.title }}</h6>
+                            <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="text-decoration-none text-dark">
+                                <h6 class="fw-bold text-truncate">{{ event.title }}</h6>
+                            </a>
                             <p class="small text-muted mb-3">{{ event.description[:60] }}...</p>
                             
                             <div class="d-flex justify-content-end gap-2">

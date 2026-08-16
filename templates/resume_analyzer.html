@@ -34,6 +34,7 @@
 
 <main class="resume-lab">
     <form id="resumeForm" class="lab-upload" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div><label for="resume">Resume file</label><input id="resume" name="resume" class="form-control" type="file" accept=".pdf,.docx,.txt" required></div>
         <div><label for="job_description">Job description or target role</label><textarea id="job_description" name="job_description" class="form-control" placeholder="Paste a role, skills list, or full job description for a sharper match"></textarea></div>
         <button id="analyzeButton" type="submit"><i class="fas fa-file-lines me-1"></i> Analyze</button>

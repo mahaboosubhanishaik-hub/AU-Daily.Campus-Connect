@@ -42,7 +42,12 @@
                                         <i class="fas fa-ellipsis-h"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg">
-                                        <li><a class="dropdown-item text-danger" href="{{ url_for('delete_doubt', doubt_id=doubt.id) }}" onclick="return confirm('Delete this doubt?')"><i class="fas fa-trash-alt me-2"></i>Delete</a></li>
+                                        <li>
+                                            <form action="{{ url_for('delete_doubt', doubt_id=doubt.id) }}" method="POST" class="m-0">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Delete this doubt?')"><i class="fas fa-trash-alt me-2"></i>Delete</button>
+                                            </form>
+                                        </li>
                                     </ul>
                                 </div>
                                 {% endif %}
@@ -83,13 +88,17 @@
                                         <div class="small mb-0 text-break" style="white-space: pre-wrap;">{{ reply.content }}</div>
                                         
                                         {% if session.get('admin') or session.get('student') == reply.user_id %}
-                                            <a href="{{ url_for('delete_doubt_reply', reply_id=reply.id) }}" class="text-danger small position-absolute top-0 end-0 mt-3 me-3" onclick="return confirm('Delete this reply?')" title="Delete"><i class="fas fa-times"></i></a>
+                                            <form action="{{ url_for('delete_doubt_reply', reply_id=reply.id) }}" method="POST" class="position-absolute top-0 end-0 mt-2 me-2">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-link text-danger small p-1" onclick="return confirm('Delete this reply?')" title="Delete"><i class="fas fa-times"></i></button>
+                                            </form>
                                         {% endif %}
                                     </div>
                                 </div>
                                 {% endfor %}
                                 
                                 <form action="{{ url_for('reply_doubt', doubt_id=doubt.id) }}" method="POST" class="d-flex mt-2">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="text" name="content" class="form-control rounded-pill bg-light border-0 px-4 me-2 shadow-sm" placeholder="Write an anonymous reply..." required>
                                     <button type="submit" class="btn btn-primary rounded-circle shadow-sm d-flex justify-content-center align-items-center" style="width: 40px; height: 40px; flex-shrink: 0;"><i class="fas fa-paper-plane small"></i></button>
                                 </form>
@@ -120,6 +129,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('add_doubt') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <p class="text-muted small mb-3">Your name and identity will be completely hidden from other students.</p>
                     <div class="mb-3">

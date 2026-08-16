@@ -1,158 +1,144 @@
 # AU Daily - Campus Connect
 
-AU Daily is a Flask-based web application designed to connect students and administrators within a university campus. It features event management, a campus news feed, student profiles, and an admin dashboard.
+AU Daily is a secure, scalable web application designed to streamline communication and resource sharing within a university campus. It provides distinct portals for students and administrators, with a robust authentication system to ensure that only authorized individuals can access the platform.
 
-## Features
+## Key Features
 
-*   **Student Portal**: Login, view events, register for events, like/comment, and manage profile.
-*   **Admin Dashboard**: Manage events, view analytics (charts), and oversee student activities.
-*   **Campus News**: A social feed for sharing updates and media.
-*   **Notifications**: Real-time alerts for new events and reminders. 
-*   **Security**: Restricted registration based on an allowed list of Student IDs.
+- **Role-Based Access Control**: Separate login and registration systems for students and administrators.
+- **Whitelisted Student Registration**: Only students whose registration numbers are pre-approved by an admin (via the `allowed_students.csv` file) can create an account.
+- **Secure Authentication**:
+  - Passwords are securely hashed and salted using `werkzeug.security`.
+  - Protection against Cross-Site Request Forgery (CSRF) on all forms.
+  - Rate limiting on login and password reset attempts to prevent brute-force attacks.
+- **Email Verification**: New student accounts must be verified via a unique link sent to their email, ensuring the validity of the provided email address.
+- **Account Recovery**:
+  - **Self-Service Password Reset**: Students can request a password reset link to their verified email.
+  - **Admin-Assisted Recovery**: For cases where email is inaccessible, students can submit a recovery request that notifies administrators to manually verify and assist.
+- **Administrator Dashboard**: A central place for administrators to manage the application, including viewing recovery requests and other administrative tasks.
+- **Database Management Scripts**:
+  - `reset_db.py`: A destructive script for development to completely reset the database, create an initial admin, and load the initial list of allowed students.
+  - `update_allowed_ids.py`: A non-destructive script to add new students from the CSV file to the database without affecting existing data.
 
-## Prerequisites
+---
 
-*   Python 3.8 or higher
-*   MySQL Server
+## Project Structure
 
-## Installation
+```
+auEapp/
+├── app.py                  # Main Flask application file, configuration, and routes.
+├── auth.py                 # Handles all authentication logic (login, register, logout, recovery).
+├── models.py               # Defines the database schema (Student, Admin, etc.).
+├── reset_db.py             # [DEV-ONLY] Destructive script to reset the database.
+├── update_allowed_ids.py   # Safely adds new student IDs to the authorization list.
+├── allowed_students.csv    # Whitelist of student registration numbers allowed to sign up.
+├── requirements.txt        # Python package dependencies.
+├── .env                    # Environment variables (DATABASE_URL, SECRET_KEY, etc.).
+├── static/                 # CSS, JavaScript, and image files.
+└── templates/              # HTML templates for the user interface.
+```
 
-1.  **Clone or Download the Repository**
-    Navigate to the project folder:
-    ```bash
-    cd auEapp
-    ```
+---
 
-2.  **Create a Virtual Environment** (Recommended)
-    ```bash
-    python -m venv venv
-    # Windows
-    venv\Scripts\activate
-    # Mac/Linux
-    source venv/bin/activate
-    ```
+## Setup and Installation
 
-3.  **Install Dependencies**
-    bash
-    pip install -r requirements.txt
-    
+Follow these steps to set up the project for development.
 
-## Database Setup
+### 1. Prerequisites
 
-1.  **Configure MySQL**
-    *   Make sure your MySQL server is running.
-    *   Create a database named `au_daily1` (or match what is in your config).
+- Python 3.8+
+- A MySQL-compatible database server.
 
-2.  **Environment Variables**
-    Copy `.env.example` to `.env` for local work. On a hosting provider, set the same values in its secret/environment-variable panel; do not upload `.env`.
-    
-    **Example `.env` file:**
-    ```ini
-    APP_ENV=production
-    SECRET_KEY=your-long-random-secret
-    DATABASE_URL=mysql+pymysql://user:password@host/au_daily1
-    PUBLIC_BASE_URL=https://your-domain.example
-    ADMIN_ALERT_RECIPIENT=admin@your-domain.example
+### 2. Clone the Repository
 
-    # For Email (e.g., Gmail)
-    MAIL_USERNAME=your_email@gmail.com
-    MAIL_PASSWORD=your_gmail_app_password
-    ```
-    *Replace `root` and `your_password` with your actual MySQL credentials.*
+```bash
+git clone <your-repository-url>
+cd auEapp
+```
 
-3.  **Setup Allowed Students**
-    To control who can register, create a file named `allowed_students.csv` in the project root. List valid Student IDs in the first column.
-    
-    **Example `allowed_students.csv`:**
-    ```csv
-    32112345001
-    32112345002
-    324207360124
-    ```
+### 3. Set up a Virtual Environment
 
-4.  **Initialize the Database**
-    For a new, empty production database, set `INITIAL_ADMIN_ID` and `INITIAL_ADMIN_PASSWORD` (12+ characters), then run the safe bootstrap script once. It refuses to run against an existing database.
-    ```bash
-    python bootstrap_production_db.py
-    ```
-    `reset_db.py` is destructive and is for local development only.
+```bash
+# Windows
+python -m venv venv
+.\venv\Scripts\activate
 
-### Database Migrations (Making Changes to the Database)
+# macOS / Linux
+python3 -m venv venv
+source venv/bin/activate
+```
 
-After the initial setup, you should **not** run `reset_db.py` again, as it will delete all your data. To make changes to the database structure (e.g., adding a new column to a table), use the following migration commands:
+### 4. Install Dependencies
 
-1.  **Make your changes** in the models in `app.py`.
+```bash
+pip install -r requirements.txt
+```
 
-2.  **Generate a migration script**:
-    ```bash
-    flask --app app db migrate -m "A short description of your changes"
-    ```
+### 5. Configure Environment Variables
 
-3.  **Apply the changes** to the database:
-    ```bash
-    flask --app app db upgrade
-    ```
+Create a file named `.env` in the root directory (`auEapp/`) and add the following configuration. **Do not commit this file to version control.**
 
-## Managing Allowed Students
+```ini
+# Flask Configuration
+FLASK_APP=app.py
+FLASK_ENV=development
+SECRET_KEY='a_very_long_and_random_secret_key_here'
 
-To add new student IDs **without resetting the database** (preserving existing users and events):
+# Database URL
+DATABASE_URL='mysql+pymysql://<user>:<password>@<host>/<database_name>'
 
-1.  Update the `allowed_students.csv` file with the new IDs (you can keep or remove old ones, the script handles duplicates).
-2.  Run the update script:
-    ```bash
-    python update_allowed_ids.py
-    ```
+# Email Configuration (e.g., for Gmail)
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME='your-email@gmail.com'
+MAIL_PASSWORD='your-app-password' # Use an App Password for security
+
+# Admin Configuration (for reset_db.py and alerts)
+INITIAL_ADMIN_ID='admin'
+INITIAL_ADMIN_PASSWORD='a_very_strong_initial_password'
+ADMIN_EMAIL_ALERTS='admin-alert-recipient@example.com'
+```
+
+### 6. Prepare the Student Whitelist
+
+Create a file named `allowed_students.csv` in the root directory. Add the registration numbers of students who are authorized to create an account, one per line.
+
+```csv
+324207360001
+324207360002
+324207360003
+```
+
+---
+
+## Database Initialization
+
+You have two scripts to manage the database.
+
+### First-Time Setup (Destructive)
+
+This script will **delete all existing data** and create the tables from scratch. It also creates the initial admin user specified in your `.env` file.
+
+```bash
+python reset_db.py
+```
+
+### Adding New Students (Non-Destructive)
+
+To authorize new students without losing any data, add their IDs to `allowed_students.csv` and run:
+
+```bash
+python update_allowed_ids.py
+```
+
+---
 
 ## Running the Application
 
-1.  Start the Flask server:
-    ```bash
-    python app.py
-    ```
+Once the setup is complete, run the Flask development server:
 
-2.  Open your browser and navigate to:
-    `http://127.0.0.1:5001`
-
-## Deployment & Updates
-
-### 1. Preparing for Production
-Set all values from `.env.example`, especially:
-```ini
-APP_ENV=production
-PUBLIC_BASE_URL=https://your-domain.example
-SECRET_KEY=a-long-random-secret
-ADMIN_ALERT_RECIPIENT=admin@your-domain.example
-```
-Terminate HTTPS at your host/reverse proxy and set `TRUST_PROXY_COUNT` to the exact number of trusted proxies (usually `1`). Do not trust forwarded headers otherwise.
-
-Start the application with Gunicorn, not `python app.py`:
 ```bash
-gunicorn --workers 3 --bind 0.0.0.0:8000 app:app
-```
-The included `Procfile` supports hosts that use it. Configure the host's `PORT` value if required.
-
-Before the first deployment, back up the database. For an existing installation, apply migrations and then move existing resource files out of the public static directory:
-```bash
-flask --app app db upgrade
-python migrate_private_resources.py
+flask run
 ```
 
-### 2. How to Update the Live App
-If you make changes to the code (e.g., adding a feature or fixing a bug), follow these steps to update your live server:
-
-1.  **Push Changes**: Upload your code changes to your Git repository (GitHub/GitLab).
-2.  **Pull on Server**: Log in to your server and pull the latest changes:
-    ```bash
-    git pull origin main
-    ```
-3.  **Install Dependencies** (if you added new packages):
-    ```bash
-    pip install -r requirements.txt
-    ```
-4.  **Back up, then update the database**:
-    ```bash
-    flask --app app db upgrade
-    ```
-5.  **Restart the App**:
-    *   If using standard systemd/gunicorn: `sudo systemctl restart au_daily`
-    *   If running manually (testing): Stop the script (Ctrl+C) and run `python app.py` again.
+The application will be available at `http://127.0.0.1:5000`.

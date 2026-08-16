@@ -9,6 +9,12 @@
                 </div>
                 <div class="card-body p-4">
                     <p class="text-muted mb-4">Please provide details about the issue. Our admin team will review this shortly.</p>
+                    <div class="alert alert-primary border-0 rounded-3 small mb-4">
+                        <div class="fw-bold mb-1"><i class="fas fa-user-shield me-2"></i>Main Admin</div>
+                        <div>SHAIK MAHABOO SUBHANI</div>
+                        <a class="text-decoration-none fw-semibold" href="mailto:mahaboosubhanishaik124@gmail.com">mahaboosubhanishaik124@gmail.com</a>
+                        <div class="text-muted mt-1">Submit here for fast admin review and response.</div>
+                    </div>
                     
                     <form action="{{ url_for('submit_report') }}" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

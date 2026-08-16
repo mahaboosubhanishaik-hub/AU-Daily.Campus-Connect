@@ -15,8 +15,16 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('recovery_request', sa.Column('recovery_email', sa.String(length=120), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = {column['name'] for column in inspector.get_columns('recovery_request')}
+    if 'recovery_email' not in columns:
+        op.add_column('recovery_request', sa.Column('recovery_email', sa.String(length=120), nullable=True))
 
 
 def downgrade():
-    op.drop_column('recovery_request', 'recovery_email')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = {column['name'] for column in inspector.get_columns('recovery_request')}
+    if 'recovery_email' in columns:
+        op.drop_column('recovery_request', 'recovery_email')

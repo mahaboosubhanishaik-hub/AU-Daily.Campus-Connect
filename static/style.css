@@ -92,13 +92,18 @@ h1,h2,h3,h4,h5,h6 {
 	backdrop-filter: blur(10px) !important;
 	-webkit-backdrop-filter: blur(10px) !important;
 	border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+	transition: transform 0.3s ease-in-out;
+}
+
+/* Class to hide the navbar by sliding it up */
+.navbar-hidden {
+    transform: translateY(-100%);
 }
 
 /* Brand color override */
 .navbar .navbar-brand { color: var(--primary) !important; font-weight: 700; }
 
 /* Make primary-colored elements use the new primary color */
-.mobile-fab { background: var(--primary) !important; color: #0b1220 !important; }
 .stat-card { border-left-color: var(--primary) !important; }
 .stat-icon { background: rgba(67, 56, 202, 0.1); color: var(--primary); }
 
@@ -124,6 +129,22 @@ a:hover, .nav-link:hover { color: var(--primary); }
 /* Responsive fixes */
 @media (max-width: 767.98px) {
 	.navbar { padding: .5rem 1rem; }
+}
+
+/* Mobile clarity: avoid soft rendering from glass blur and touch hover scaling. */
+@media (max-width: 991.98px) {
+	body {
+		letter-spacing: 0;
+		-webkit-font-smoothing: auto;
+		-moz-osx-font-smoothing: auto;
+		text-rendering: optimizeLegibility;
+	}
+
+	img,
+	video {
+		max-width: 100%;
+		height: auto;
+	}
 }
 
 /* Small accessible focus state */
@@ -221,10 +242,25 @@ a:focus, button:focus, input:focus {
     margin-right: auto;
 }
 
+.feature-grid-container {
+    padding-bottom: 1.5rem;
+}
+
 .feature-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 2rem;
+}
+
+@media (max-width: 767.98px) {
+    .feature-grid {
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 1rem; /* Space for scrollbar */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        gap: 1rem;
+    }
 }
 
 .feature-card {
@@ -235,7 +271,188 @@ a:focus, button:focus, input:focus {
     text-align: center;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+
+@media (max-width: 767.98px) {
+    .feature-card {
+        flex: 0 0 220px; /* Give cards a fixed width so they don't shrink */
+        white-space: normal; /* Allow text inside to wrap */
+    }
+}
 .feature-card:hover {
     transform: translateY(-5px);
     box-shadow: var(--shadow-2);
+}
+
+/* ========================= */
+/* INSTAGRAM-LIKE FEED       */
+/* ========================= */
+
+.feed-container {
+    width: min(100%, 1200px);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+}
+
+@media (min-width: 1400px) {
+    .feed-container {
+        max-width: 1320px;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .feed-container {
+        max-width: 520px;
+        padding: .35rem 0 5rem; /* Increased bottom padding for nav bar */
+    }
+}
+
+.feed-container > .row {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.card[id^="event-"] {
+    scroll-margin-top: 90px;
+    overflow: hidden;
+    border-radius: 14px;
+}
+
+.event-img {
+    width: 100%;
+    height: 230px;
+    object-fit: cover;
+    display: block;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.badge-recommend {
+    background: #fef3c7;
+    color: #92400e;
+    box-shadow: 0 10px 22px rgba(146, 64, 14, .18);
+}
+
+@media (min-width: 1200px) {
+    .event-img {
+        height: 250px;
+    }
+}
+
+.post-card {
+    background: var(--surface);
+    border: 1px solid #e2e8f0;
+    border-radius: var(--card-radius);
+    margin-bottom: 1.5rem;
+    box-shadow: none; /* Flatter look for feed cards */
+}
+.post-card:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.post-header {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+}
+
+.post-header img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 0.75rem;
+}
+
+.post-header .post-user {
+    font-weight: 600;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.post-header .post-time {
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
+.post-media img,
+.post-media video {
+    width: 100%;
+    height: auto;
+    max-height: 75vh;
+    object-fit: cover;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.post-actions {
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.post-actions .btn {
+    font-size: 1.25rem;
+    color: var(--text);
+    padding: 0.25rem;
+}
+.post-actions .btn:hover {
+    opacity: 0.7;
+}
+.post-actions .btn.liked {
+    color: #ef4444; /* Red for liked */
+}
+
+.post-body {
+    padding: 0 1rem 1rem 1rem;
+}
+
+.post-likes {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.post-content {
+    font-size: 0.9rem;
+}
+
+/* ========================= */
+/* BACK TO TOP BUTTON        */
+/* ========================= */
+
+#backToTopBtn {
+    display: none; /* Hidden by default */
+    position: fixed;
+    bottom: 20px;
+    right: 30px;
+    z-index: 1030; /* Above most content, below modals */
+    border: none;
+    outline: none;
+    background-color: var(--primary);
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+    line-height: 50px; /* Center the arrow */
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    opacity: 0;
+    visibility: hidden;
+}
+
+#backToTopBtn.show {
+    display: block;
+    opacity: 1;
+    visibility: visible;
+}
+
+#backToTopBtn:hover {
+    background-color: var(--primary-2);
 }

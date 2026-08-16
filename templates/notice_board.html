@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold"><i class="fas fa-clipboard-list me-2 text-primary"></i>Digital Notice Board</h2>
+                    <p class="text-muted">Official announcements from the university.</p>
+                </div>
+            </div>
+
+            <!-- Department Filter -->
+            <div class="mb-4">
+                <form method="GET" class="d-flex align-items-center gap-2">
+                    <select name="department" class="form-select w-auto" onchange="this.form.submit()">
+                        {% for dept in filter_depts %}
+                        <option value="{{ dept }}" {% if dept == current_dept %}selected{% endif %}>{{ dept }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if current_dept != 'All' %}
+                    <a href="{{ url_for('main.notice_board') }}" class="btn btn-light">Clear Filter</a>
+                    {% endif %}
+                </form>
+            </div>
+
+            <!-- Notices List -->
+            <div class="list-group">
+                {% for notice in notices %}
+                <div class="list-group-item list-group-item-action p-4 mb-3 border-0 shadow-sm rounded-4">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1 fw-bold">{{ notice.title }}</h5>
+                        <small class="text-muted">{{ notice.timestamp | time_ago }}</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge bg-light text-dark border">{{ notice.department }}</span>
+                        {% if notice.is_urgent %}
+                        <span class="badge bg-danger"><i class="fas fa-exclamation-circle me-1"></i>Urgent</span>
+                        {% endif %}
+                    </div>
+                    {% if notice.content %}
+                    <p class="mb-3" style="white-space: pre-wrap;">{{ notice.content }}</p>
+                    {% endif %}
+                    {% if notice.file_path %}
+                    <a href="{{ url_for('static', filename='media/' + notice.file_path) }}" class="btn btn-sm btn-outline-primary rounded-pill" download>
+                        <i class="fas fa-download me-1"></i> Download Attachment
+                    </a>
+                    {% endif %}
+                    <hr class="my-3">
+                    <small class="text-muted">Posted by: <strong>{{ notice.admin.admin_id }}</strong> (Admin)</small>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-file-alt fa-3x mb-3 opacity-25"></i>
+                    <p>No notices found for this filter.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

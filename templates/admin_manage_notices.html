@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="fas fa-bullhorn me-2 text-primary"></i>Manage Notices</h2>
+        <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i> Dashboard</a>
+    </div>
+
+    <div class="row g-4">
+        <!-- Post New Notice Form -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Post New Notice</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">TITLE *</label>
+                            <input type="text" name="title" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">DEPARTMENT *</label>
+                            <select name="department" class="form-select" required>
+                                <option value="" disabled selected>Select a department...</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept }}">{{ dept }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">CONTENT</label>
+                            <textarea name="content" class="form-control" rows="4" placeholder="Optional notice body..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">ATTACHMENT (PDF, DOCX, etc.)</label>
+                            <input type="file" name="file" class="form-control">
+                        </div>
+                        <div class="form-check form-switch mb-4">
+                            <input class="form-check-input" type="checkbox" name="is_urgent" id="isUrgentCheck">
+                            <label class="form-check-label fw-bold text-danger" for="isUrgentCheck">Mark as Urgent</label>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary rounded-pill py-2 fw-bold">Post Notice</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Existing Notices List -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Posted Notices</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Title</th>
+                                    <th>Department</th>
+                                    <th>Posted</th>
+                                    <th>Attachment</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for notice in notices %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ notice.title }} {% if notice.is_urgent %}<span class="badge bg-danger">Urgent</span>{% endif %}</td>
+                                    <td><span class="badge bg-secondary">{{ notice.department }}</span></td>
+                                    <td class="text-muted small">{{ notice.timestamp | time_ago }}</td>
+                                    <td>
+                                        {% if notice.file_path %}
+                                        <a href="{{ url_for('static', filename='media/' + notice.file_path) }}" class="btn btn-sm btn-outline-secondary" download><i class="fas fa-download"></i></a>
+                                        {% else %}
+                                        <span class="text-muted small">None</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center py-5 text-muted">No notices have been posted yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

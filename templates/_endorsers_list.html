@@ -1,0 +1,12 @@
+{% if endorsers %}
+<ul class="list-unstyled mb-0">
+    {% for endorser in endorsers %}
+    <li class="d-flex align-items-center py-2 border-bottom">
+        <img src="{{ url_for('static', filename='media/' + (endorser.profile_pic or 'default.jpg')) }}" class="rounded-circle me-2" style="width: 32px; height: 32px; object-fit: cover;" alt="{{ endorser.name }}">
+        <a href="{{ url_for('main.view_profile', student_id=endorser.student_id) }}" class="text-decoration-none fw-semibold">{{ endorser.name }}</a>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted mb-0">No endorsements yet.</p>
+{% endif %}

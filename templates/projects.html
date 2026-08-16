@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold"><i class="fas fa-code-branch me-2 text-primary"></i>Student Project Showcase</h2>
+            <p class="text-muted">Explore innovative projects by AU students.</p>
+        </div>
+        <a href="{{ url_for('main.add_project') }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <i class="fas fa-plus-circle me-1"></i> Add Your Project
+        </a>
+    </div>
+
+    <!-- Search and Filter Form -->
+    <div class="card mb-4 border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+            <form action="{{ url_for('main.projects') }}" method="GET" class="row g-3 align-items-end">
+                <div class="col-md-8 col-lg-9">
+                    <label for="searchQuery" class="form-label small fw-bold text-muted">SEARCH PROJECTS</label>
+                    <input type="text" id="searchQuery" name="q" class="form-control bg-light border-0" placeholder="Project title, description, technologies, student name..." value="{{ search_query }}">
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <label for="techFilter" class="form-label small fw-bold text-muted">TECHNOLOGY</label>
+                    <select id="techFilter" name="tech_filter" class="form-select bg-light border-0">
+                        <option value="All" {% if tech_filter == 'All' %}selected{% endif %}>All Technologies</option>
+                        {% for tech in technologies %}
+                        <option value="{{ tech }}" {% if tech_filter == tech %}selected{% endif %}>{{ tech }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="fas fa-filter me-1"></i> Apply Filters</button>
+                    <a href="{{ url_for('main.projects') }}" class="btn btn-light rounded-pill px-4 ms-2">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Project List -->
+    <div class="row g-4" id="projects-container" data-has-next="{{ has_next | tojson }}">
+        {% include '_projects_grid.html' %}
+    </div>
+
+    <!-- Loading Spinner for Infinite Scroll -->
+    <div id="loading-spinner" class="text-center py-4 d-none">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    {% if not projects %}
+        <div class="col-12">
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-folder-open fa-3x mb-3 opacity-25"></i>
+                <p>No projects found. Be the first to showcase your work!</p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    // Infinite Scroll Logic
+    const projectsContainer = document.getElementById('projects-container');
+    let page = 2; // Start loading from the next page
+    let hasNext = projectsContainer.dataset.hasNext === 'true';
+    let isLoading = false;
+    const loadingSpinner = document.getElementById('loading-spinner');
+
+    function loadMoreProjects() {
+        if (isLoading || !hasNext) return;
+        isLoading = true;
+        loadingSpinner.classList.remove('d-none');
+
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(response => response.text())
+            .then(html => {
+                loadingSpinner.classList.add('d-none');
+                if (html.trim()) {
+                    document.getElementById('projects-container').insertAdjacentHTML('beforeend', html);
+                    page++;
+                } else {
+                    hasNext = false;
+                }
+                isLoading = false;
+            }).catch(() => isLoading = false);
+    }
+
+    window.addEventListener('scroll', () => {
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+            loadMoreProjects();
+        }
+    });
+
+    // Like Project Logic
+    function likeProject(projectId) {
+        fetch(`/like_project/${projectId}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-Token': '{{ csrf_token() }}'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const likeBtn = document.getElementById(`project-like-btn-${projectId}`);
+                likeBtn.innerHTML = `<i class="${data.liked ? 'fas' : 'far'} fa-heart"></i> ${data.likes}`;
+                likeBtn.classList.toggle('text-danger', data.liked);
+                likeBtn.classList.toggle('text-muted', !data.liked);
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -17,6 +17,7 @@ Here are the core database tables that power the application:
 - **Campus Events:** `Event`, `EventLike`, `Comment`, `EventRegistration`
 - **Campus News Feed:** `NewsPost`, `NewsLike`, `NewsComment` 
 - **Campus Utilities:** `LostItem`, `AnonymousDoubt`, `DoubtReply`, `Poll`, `PollOption`, `PollVote` 
+- **Peer Learning:** `StudentSkill`, `SkillEndorsement`
 - **Productivity & Academics:** `Task`, `Resource`, `ResourceComment` 
 - **Media & AI:** Gallery
 
@@ -57,5 +58,10 @@ Ensure the following keys are maintained in your `.env` file for the app to func
 
 ## 7. Future Enhancements (TODOs)
 *Use this section to track what you want to build next.*
-- [ ] Add email verification upon student registration.
-- [ ] Implement pagination for the campus events page.
+- [x] Add email verification upon student registration.
+- [x] Implement pagination for the campus events page.
+
+## 8. Recent Completion Notes
+- Added the Skill Exchange Hub for searching student skills, filtering by department, endorsing skills, and connecting with skilled peers.
+- Improved Lost & Found reporting with required-field validation, CSRF protection, clearer upload failures, and a wider search input with an icon.
+- Clarified administrator password-recovery status so new requests show as Pending until the admin verifies identity and generates a temporary password.

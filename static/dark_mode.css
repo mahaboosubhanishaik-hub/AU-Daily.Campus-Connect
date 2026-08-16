@@ -61,6 +61,16 @@ html.dark-mode .modal-footer {
     color: var(--text-color);
 }
 
+.form-select option {
+    background-color: #ffffff;
+    color: #0b1220;
+}
+
+html.dark-mode .form-select option {
+    background-color: #0f1724;
+    color: #fff8ea;
+}
+
 .form-control:focus, .form-select:focus {
     background-color: var(--input-bg);
     color: var(--text-color);
@@ -121,3 +131,9 @@ html.dark-mode .metric-label {
 html.dark-mode .metric-value {
     color: #fff8ea;
 }
+
+html.dark-mode #backToTopBtn {
+    background-color: var(--accent);
+    color: #ffffff;
+}
+html.dark-mode #backToTopBtn:hover { background-color: var(--primary); }

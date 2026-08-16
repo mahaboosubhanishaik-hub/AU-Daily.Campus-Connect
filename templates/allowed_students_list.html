@@ -20,8 +20,8 @@
             </div>
             <div>
                 <button type="submit" form="bulkDeleteForm" id="bulkDeleteBtn" class="btn btn-danger shadow-sm me-2" onclick="return confirm('Are you sure you want to delete the selected IDs?')" disabled><i class="fas fa-trash-alt me-1"></i> Delete Selected</button>
-                <button type="button" class="btn btn-success shadow-sm me-2" data-bs-toggle="modal" data-bs-target="#addStudentModal"><i class="fas fa-plus me-1"></i> Add ID</button>
-                <button type="button" class="btn btn-info shadow-sm me-2 text-white" data-bs-toggle="modal" data-bs-target="#uploadCsvModal"><i class="fas fa-file-upload me-1"></i> Upload CSV</button>
+                <button type="button" id="openAddStudentModal" class="btn btn-success shadow-sm me-2" data-bs-toggle="modal" data-bs-target="#addStudentModal"><i class="fas fa-plus me-1"></i> Add ID</button>
+                <button type="button" id="openUploadCsvModal" class="btn btn-info shadow-sm me-2 text-white" data-bs-toggle="modal" data-bs-target="#uploadCsvModal"><i class="fas fa-file-upload me-1"></i> Upload CSV</button>
                 <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary shadow-sm"><i class="fas fa-arrow-left me-1"></i> Back to Dashboard</a>
             </div>
         </div>
@@ -39,7 +39,8 @@
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <form id="bulkDeleteForm" action="{{ url_for('delete_allowed_students_bulk') }}" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    </form>
                     <table class="table table-hover mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
@@ -55,12 +56,15 @@
                             {% for student in allowed_students %}
                             <tr>
                                 <td class="ps-4">
-                                    <input type="checkbox" class="form-check-input student-checkbox" name="student_ids" value="{{ student.id }}">
+                                    <input type="checkbox" class="form-check-input student-checkbox" name="student_ids" value="{{ student.id }}" form="bulkDeleteForm">
                                 </td>
                                 <td class="text-muted small">{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
                                 <td class="fw-bold font-monospace">{{ student.student_id }}</td>
                                 <td class="text-end pe-4">
-                                    <a href="{{ url_for('delete_allowed_student', id=student.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to remove this ID from the allowed list?')"><i class="fas fa-trash-alt"></i> Delete</a>
+                                    <form action="{{ url_for('delete_allowed_student', id=student.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to remove this ID from the allowed list?')"><i class="fas fa-trash-alt"></i> Delete</button>
+                                    </form>
                                 </td>
                             </tr>
                             {% else %}
@@ -73,7 +77,6 @@
                             {% endfor %}
                         </tbody>
                     </table>
-                    </form>
                 </div>
             </div>
             
@@ -113,7 +116,8 @@
                 <h5 class="modal-title fw-bold">Add Allowed Student ID</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ url_for('add_allowed_student') }}" method="POST">
+            <form action="{{ url_for('main.add_allowed_student') }}" method="POST" data-loading-label="Adding...">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="studentIdInput" class="form-label fw-bold">Student ID</label>
@@ -137,7 +141,8 @@
                 <h5 class="modal-title fw-bold">Upload Allowed Students (CSV)</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ url_for('upload_allowed_students') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ url_for('main.upload_allowed_students') }}" method="POST" enctype="multipart/form-data" data-loading-label="Uploading...">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Select CSV File</label>
@@ -174,6 +179,40 @@
 
         checkboxes.forEach(cb => {
             cb.addEventListener('change', updateButtonState);
+        });
+
+        function clearModalState() {
+            if (!document.querySelector('.modal.show')) {
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+                document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+            }
+        }
+
+        function wireModalButton(buttonId, modalId) {
+            const button = document.getElementById(buttonId);
+            const modal = document.getElementById(modalId);
+            if (!button || !modal) return;
+
+            button.addEventListener('click', function () {
+                clearModalState();
+                if (window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modal).show();
+                }
+            });
+        }
+
+        wireModalButton('openAddStudentModal', 'addStudentModal');
+        wireModalButton('openUploadCsvModal', 'uploadCsvModal');
+
+        document.querySelectorAll('form[data-loading-label]').forEach(form => {
+            form.addEventListener('submit', function () {
+                const submitButton = form.querySelector('button[type="submit"]');
+                if (!submitButton) return;
+                submitButton.disabled = true;
+                submitButton.textContent = form.dataset.loadingLabel || 'Please wait...';
+            });
         });
     });
 </script>

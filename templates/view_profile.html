@@ -39,7 +39,12 @@
                     {% if student.student_id == current_user_id %}
                     <a href="{{ url_for('student_settings') }}" class="btn btn-light rounded-pill px-4"><i class="fas fa-sliders me-2"></i>Edit profile</a>
                     {% elif session.get('student') and not student.is_admin_profile %}
-                    <a href="{{ url_for('follow_user', student_id=student.student_id) }}" class="btn btn-light rounded-pill px-4">{% if is_following %}<i class="fas fa-check me-1"></i>Following{% else %}<i class="fas fa-user-plus me-1"></i>Follow{% endif %}</a>
+                    <form action="{{ url_for('follow_user', student_id=student.student_id) }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-light rounded-pill px-4">
+                            {% if is_following %}<i class="fas fa-check me-1"></i>Following{% else %}<i class="fas fa-user-plus me-1"></i>Follow{% endif %}
+                        </button>
+                    </form>
                     <a href="{{ url_for('chat', student_id=student.student_id) }}" class="btn btn-outline-light rounded-pill px-4 ms-1"><i class="fas fa-message"></i></a>
                     {% endif %}
                 </div>
@@ -75,7 +80,7 @@
         <div class="tab-pane fade" id="events">
             <div class="row g-3">
                 {% for event in events %}
-                <div class="col-md-6"><article class="card content-card h-100"><div class="card-body p-4"><span class="badge bg-primary bg-opacity-10 text-primary rounded-pill mb-3"><i class="fas fa-calendar me-1"></i>{{ event.date }}</span><h5 class="fw-bold">{{ event.title }}</h5><p class="text-muted mb-0">{{ event.description[:150] }}{% if event.description|length > 150 %}...{% endif %}</p>{% if student.student_id == current_user_id %}<div class="mt-3"><a href="{{ url_for('edit_event', event_id=event.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill">Edit</a><a href="{{ url_for('delete_event', id=event.id) }}" class="btn btn-sm btn-outline-danger rounded-pill" onclick="return confirm('Are you sure?')">Delete</a></div>{% endif %}</div></article></div>
+                <div class="col-md-6"><article class="card content-card h-100"><div class="card-body p-4"><span class="badge bg-primary bg-opacity-10 text-primary rounded-pill mb-3"><i class="fas fa-calendar me-1"></i>{{ event.date }}</span><a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="text-decoration-none text-dark"><h5 class="fw-bold">{{ event.title }}</h5></a><p class="text-muted mb-0">{{ event.description[:150] }}{% if event.description|length > 150 %}...{% endif %}</p>{% if student.student_id == current_user_id %}<div class="mt-3"><a href="{{ url_for('edit_event', event_id=event.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill">Edit</a><a href="{{ url_for('delete_event', id=event.id) }}" class="btn btn-sm btn-outline-danger rounded-pill" onclick="return confirm('Are you sure?')">Delete</a></div>{% endif %}</div></article></div>
                 {% else %}
                 <div class="col-12"><div class="card content-card"><div class="card-body text-center py-5 text-muted"><i class="fas fa-calendar-xmark fa-2x mb-3"></i><p class="mb-0">No events posted yet.</p></div></div></div>
                 {% endfor %}

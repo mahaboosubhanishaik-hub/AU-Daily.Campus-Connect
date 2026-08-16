@@ -3,3 +3,26 @@ venv/
 __pycache__/
 *.py[cod]
 private_uploads/
+
+# Local runtime data
+*.db
+*.sqlite
+*.sqlite3
+instance/
+.pytest_cache/
+
+# Local debug/run helpers
+debug_*.py
+tmp_*.py
+live_*.py
+*_run.py
+login_test_real.py
+set_password.py
+set_admin_credentials.py
+fix_db.py
+fix_templates.py
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/

@@ -5,7 +5,7 @@
     <div class="col-md-8">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="fw-bold mb-0">Campus Polls</h3>
-            <a href="{{ url_for('create_poll') }}" class="btn btn-primary rounded-pill shadow-sm"><i class="fas fa-plus me-1"></i> New Poll</a>
+            <a href="{{ url_for('main.create_poll') }}" class="btn btn-primary rounded-pill shadow-sm"><i class="fas fa-plus me-1"></i> New Poll</a>
         </div>
 
         {% for poll in polls %}
@@ -14,7 +14,10 @@
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     <h5 class="card-title fw-bold mb-0">{{ poll.question }}</h5>
                     {% if session.get('student') == poll.created_by or session.get('admin') %}
-                        <a href="{{ url_for('delete_poll', poll_id=poll.id) }}" class="text-danger small" onclick="return confirm('Are you sure you want to delete this poll?');"><i class="fas fa-trash"></i></a>
+                        <form action="{{ url_for('main.delete_poll', poll_id=poll.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this poll?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-link text-danger small p-0"><i class="fas fa-trash"></i></button>
+                        </form>
                     {% endif %}
                 </div>
                 <p class="text-muted small mb-4"><i class="fas fa-user me-1"></i> Posted by <strong><a href="{{ url_for('main.view_profile', student_id=poll.created_by) }}" class="text-decoration-none text-dark">{{ poll.creator_name }}</a></strong> • <i class="fas fa-clock me-1"></i> {{ poll.timestamp | time_ago }} • {{ poll.total_votes }} votes</p>
@@ -28,19 +31,30 @@
                             </div>
                             
                             {% if not poll.user_has_voted %}
-                            <a href="{{ url_for('vote', poll_id=poll.id, option_id=option.id) }}" class="text-decoration-none">
-                            {% endif %}
-                            <div class="progress {% if not poll.user_has_voted %}poll-cursor-pointer{% endif %}" style="height: 12px; border-radius: 10px;">
+                            <form action="{{ url_for('main.vote', poll_id=poll.id, option_id=option.id) }}" method="POST" class="w-100">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-link w-100 text-start p-0 border-0 bg-transparent">
+                                    <div class="progress poll-cursor-pointer" style="height: 12px; border-radius: 10px;">
+                                        <div class="progress-bar bg-primary opacity-75" 
+                                             role="progressbar" 
+                                             data-width="{{ option.percent }}%" 
+                                             aria-valuenow="{{ option.percent }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                </button>
+                            </form>
+                            {% else %}
+                            <div class="progress" style="height: 12px; border-radius: 10px;">
                                 <div class="progress-bar {% if poll.user_has_voted and poll.user_has_voted.option_id == option.id %}bg-success{% else %}bg-primary opacity-75{% endif %}" 
                                      role="progressbar" 
-                                 data-width="{{ option.percent }}%" 
+                                     data-width="{{ option.percent }}%" 
                                      aria-valuenow="{{ option.percent }}" 
                                      aria-valuemin="0" 
                                      aria-valuemax="100">
                                 </div>
                             </div>
-                            {% if not poll.user_has_voted %}
-                            </a>
                             {% endif %}
 
                             <!-- Interactive Voters Display (Revealed only after you vote) -->

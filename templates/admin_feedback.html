@@ -18,6 +18,7 @@
                     <div class="alert alert-success small py-2"><strong>Your reply:</strong> {{ feedback.admin_response }}</div>
                     {% endif %}
                     <form action="{{ url_for('reply_to_feedback', id=feedback.id) }}" method="POST" class="mb-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <label class="form-label small fw-bold">Reply to student</label>
                         <textarea class="form-control form-control-sm mb-2" name="reply" rows="2" maxlength="2000" required placeholder="Write an admin response..."></textarea>
                         <button class="btn btn-primary btn-sm" type="submit"><i class="fas fa-paper-plane me-1"></i> Send reply</button>

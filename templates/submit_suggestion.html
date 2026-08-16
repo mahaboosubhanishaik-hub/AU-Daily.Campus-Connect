@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card border-0 shadow-lg rounded-4 mt-4">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <div class="bg-info bg-opacity-10 text-info rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="fas fa-lightbulb fa-lg"></i>
+                    </div>
+                    <h3 class="fw-bold">Submit a Suggestion</h3>
+                    <p class="text-muted">Share your ideas to improve campus life, anonymously.</p>
+                </div>
+
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">CATEGORY *</label>
+                        <select name="category" class="form-select bg-light border-0 py-2 rounded-3" required>
+                            <option value="" disabled selected>Select a category...</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-muted">YOUR SUGGESTION *</label>
+                        <textarea name="content" class="form-control bg-light border-0 py-3 rounded-3" rows="5" placeholder="I suggest that the university should..." required></textarea>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="isAnonymous" name="is_anonymous" checked>
+                        <label class="form-check-label small text-muted" for="isAnonymous">
+                            Submit Anonymously (Recommended)
+                        </label>
+                        <div class="form-text small text-muted">Your identity will not be revealed to the administration.</div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary rounded-pill py-2 fw-bold shadow-sm">Submit Suggestion</button>
+                        <a href="{{ url_for('main.home') }}" class="btn btn-light rounded-pill py-2 text-muted">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

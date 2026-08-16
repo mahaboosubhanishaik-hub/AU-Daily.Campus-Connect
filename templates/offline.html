@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - AU Daily</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+            padding: 20px;
+        }
+        .offline-card {
+            background: #ffffff;
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-card">
+        <div style="font-size: 4rem; margin-bottom: 20px;">📶❌</div>
+        <h1>You are offline</h1>
+        <p>It looks like you've lost your internet connection. Cached pages are still available, but new content cannot be loaded.</p>
+        <button onclick="window.location.reload()" style="padding: 10px 25px; font-size: 1rem; cursor: pointer; background-color: #0d6efd; color: white; border: none; border-radius: 50px;">Try Again</button>
+    </div>
+</body>
+</html>

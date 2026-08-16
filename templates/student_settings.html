@@ -13,16 +13,17 @@
                 <img src="{{ url_for('static', filename='media/' + (student.profile_pic or 'default.jpg')) }}" class="rounded-circle mb-3 border shadow-sm" style="width:124px;height:124px;object-fit:cover;" alt="Profile picture">
                 <h5 class="fw-bold mb-1">Profile picture</h5><p class="text-muted small mb-3">Choose a JPG, PNG, GIF, or WEBP photo.</p>
                 <form id="profilePhotoForm" action="{{ url_for('update_profile_pic') }}" method="POST" enctype="multipart/form-data" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <label class="btn btn-primary rounded-pill px-4 mb-0" for="profilePicInput"><i class="fas fa-image me-1"></i> Choose new photo</label>
                     <input type="file" name="profile_pic" id="profilePicInput" class="d-none" accept=".jpg,.jpeg,.png,.gif,.webp" required>
                 </form>
-                {% if student.profile_pic %}<form action="{{ url_for('remove_profile_pic') }}" method="POST" class="d-inline ms-1"><button type="submit" class="btn btn-outline-danger rounded-pill px-4" onclick="return confirm('Remove profile picture?')">Remove</button></form>{% endif %}
+                {% if student.profile_pic %}<form action="{{ url_for('remove_profile_pic') }}" method="POST" class="d-inline ms-1"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-outline-danger rounded-pill px-4" onclick="return confirm('Remove profile picture?')">Remove</button></form>{% endif %}
                 <p id="uploadStatus" class="small text-muted mt-3 mb-0 d-none"><span class="spinner-border spinner-border-sm me-1"></span>Uploading your photo…</p>
             </div>
         </div>
 
         <div class="card border-0 shadow-sm mb-4"><div class="card-header bg-white py-3"><h5 class="mb-0 fw-bold h6">Personal information</h5></div><div class="card-body p-4">
-            <form method="POST"><input type="hidden" name="action" value="update_info">
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="update_info">
                 <div class="mb-3"><label class="form-label small text-muted fw-bold">FULL NAME</label><input type="text" name="name" class="form-control" value="{{ student.name }}" required></div>
                 <div class="mb-3"><label class="form-label small text-muted fw-bold">EMAIL ADDRESS</label><input type="email" name="email" class="form-control" value="{{ student.email }}" required></div>
                 <div class="row g-3 mb-3"><div class="col-md-6"><label class="form-label small text-muted fw-bold">PHONE NUMBER</label><input type="tel" name="phone" class="form-control" value="{{ student.phone }}" required></div><div class="col-md-6"><label class="form-label small text-muted fw-bold">GRADUATION YEAR</label><input type="number" name="graduation_year" class="form-control" value="{{ student.graduation_year or '' }}" placeholder="e.g. 2026"></div></div>
@@ -30,7 +31,24 @@
             </form>
         </div></div>
 
-        <div class="card border-0 shadow-sm"><div class="card-header bg-white py-3"><h5 class="mb-0 fw-bold h6">Change password</h5></div><div class="card-body p-4"><form method="POST"><input type="hidden" name="action" value="change_password"><div class="mb-3"><label class="form-label small text-muted fw-bold">CURRENT PASSWORD</label><input type="password" name="current_password" class="form-control" required></div><div class="row g-3 mb-3"><div class="col-md-6"><label class="form-label small text-muted fw-bold">NEW PASSWORD</label><input type="password" name="new_password" class="form-control" required></div><div class="col-md-6"><label class="form-label small text-muted fw-bold">CONFIRM NEW PASSWORD</label><input type="password" name="confirm_password" class="form-control" required></div></div><div class="text-end"><button type="submit" class="btn btn-warning text-dark rounded-pill px-4">Update password</button></div></form></div></div>
+        <div class="card border-0 shadow-sm"><div class="card-header bg-white py-3"><h5 class="mb-0 fw-bold h6">Change password</h5></div><div class="card-body p-4"><form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="change_password"><div class="mb-3"><label class="form-label small text-muted fw-bold">CURRENT PASSWORD</label><input type="password" name="current_password" class="form-control" required></div><div class="row g-3 mb-3"><div class="col-md-6"><label class="form-label small text-muted fw-bold">NEW PASSWORD</label><input type="password" name="new_password" class="form-control" required></div><div class="col-md-6"><label class="form-label small text-muted fw-bold">CONFIRM NEW PASSWORD</label><input type="password" name="confirm_password" class="form-control" required></div></div><div class="text-end"><button type="submit" class="btn btn-warning text-dark rounded-pill px-4">Update password</button></div></form></div></div>
+
+        <div class="card border-0 shadow-sm mt-4"><div class="card-header bg-white py-3"><h5 class="mb-0 fw-bold h6">Skills</h5></div><div class="card-body p-4">
+            <form method="POST" class="input-group mb-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="add_skill">
+                <input type="text" name="skill_name" class="form-control" placeholder="Add a skill, e.g. Python" required>
+                <button type="submit" class="btn btn-primary">Add</button>
+            </form>
+            {% for skill in student.skills %}
+            <form action="{{ url_for('main.delete_skill', skill_id=skill.id) }}" method="POST" class="d-inline-block mb-2 me-1">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-light btn-sm rounded-pill border" onclick="return confirm('Remove this skill?')">{{ skill.skill_name }} <i class="fas fa-times ms-1 text-muted"></i></button>
+            </form>
+            {% else %}
+            <p class="text-muted mb-0 small">No skills added yet.</p>
+            {% endfor %}
+        </div></div>
     </div>
 </div>
 {% endblock %}

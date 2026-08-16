@@ -355,8 +355,8 @@ def analyze_placement():
     # Text extraction from PDF
     pdf_reader = PyPDF2.PdfReader(io.BytesIO(resume_file.read()))
     resume_text = ""
-    for page in pdf_reader.pages:
-        resume_text += page.extract_text() + "\n"
+    for page in pdf_reader.pages: # This code snippet is from the report, not app.py
+        resume_text += page.extract_text() + "\n" 
             
     # AI Integration with Search Grounding
     client = genai.Client(api_key=GEMINI_API_KEY)
@@ -365,7 +365,7 @@ def analyze_placement():
     
     search_tool = types.Tool(google_search=types.GoogleSearch())
     response = client.models.generate_content(
-        model='gemini-1.5-flash-latest',
+        model='gemini-1.5-flash-latest', # This model is correct
         contents=prompt,
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,

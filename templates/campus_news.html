@@ -9,6 +9,7 @@
             <div class="card-body">
                 <h5 class="card-title">Share an Update</h5>
                 <form action="{{ url_for('add_news_post') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <textarea name="content" id="newsContent" class="form-control" rows="3" placeholder="What's happening on campus?" required maxlength="280"></textarea>
                         <div class="text-end text-muted small mt-1"><span id="charCount">0</span>/280</div>
@@ -106,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 function likeNewsPost(postId) {
-    fetch('/like_news/' + postId, { method: 'POST' })
+    fetch('/like_news/' + postId, { method: 'POST', headers: { 'X-CSRF-Token': '{{ csrf_token() }}' } })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -123,6 +124,7 @@ function editNewsComment(commentId, currentContent) {
         formData.append('content', newContent);
         fetch('/edit_news_comment/' + commentId, {
             method: 'POST',
+            headers: { 'X-CSRF-Token': '{{ csrf_token() }}' },
             body: formData
         }).then(() => {
             window.location.reload();
@@ -141,6 +143,7 @@ function postNewsComment(e, postId) {
 
     fetch('/comment_news/' + postId, {
         method: 'POST',
+        headers: { 'X-CSRF-Token': '{{ csrf_token() }}' },
         body: formData
     })
     .then(response => response.json())
@@ -159,6 +162,7 @@ function postNewsComment(e, postId) {
                     </div>
                 </div>
                 <form action="/edit_news_comment/${data.comment_id}" method="POST" class="d-none mb-2" id="comment-edit-form-${data.comment_id}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden">
                         <input type="text" name="content" class="form-control border-0 bg-white px-3" value="${data.content}" required>
                         <button type="submit" class="btn btn-primary px-3">Save</button>

@@ -225,6 +225,7 @@
             <p class="auth-subtitle mb-4">Use your student ID or registered email to continue.</p>
 
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label class="form-label auth-label">Student ID or Email</label>
                     <div class="input-group input-group-lg auth-input-group">

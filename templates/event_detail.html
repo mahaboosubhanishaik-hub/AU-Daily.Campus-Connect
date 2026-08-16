@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block content_wrapper_class %}event-detail-container{% endblock %}
+
+{% block content %}
+<style>
+    .event-detail-container {
+        width: min(1180px, calc(100vw - 48px));
+        margin: 0 auto;
+        padding: 1.5rem 0 3rem;
+    }
+    .event-detail-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(330px, .75fr);
+        gap: 28px;
+        align-items: start;
+    }
+    .event-media-panel,
+    .event-info-panel,
+    .event-comments-panel {
+        border: 1px solid rgba(15, 23, 42, .08);
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .08);
+        overflow: hidden;
+    }
+    .event-media-panel img,
+    .event-media-panel video {
+        width: 100%;
+        max-height: 560px;
+        object-fit: cover;
+        display: block;
+        background: #e2e8f0;
+    }
+    .event-empty-media {
+        min-height: 360px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #eff6ff, #f8fafc);
+        color: #94a3b8;
+    }
+    .event-info-panel {
+        padding: 24px;
+        position: sticky;
+        top: 88px;
+    }
+    .event-title {
+        font-size: clamp(2rem, 4vw, 3.4rem);
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: 0;
+        color: #0f172a;
+    }
+    .event-meta-grid {
+        display: grid;
+        gap: 12px;
+        margin: 22px 0;
+    }
+    .event-meta {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+    .event-meta i {
+        width: 38px;
+        height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        color: #155eef;
+        background: #dbeafe;
+    }
+    .event-description {
+        white-space: pre-line;
+        color: #475569;
+        font-size: 1rem;
+        line-height: 1.8;
+    }
+    .event-comments-panel {
+        margin-top: 28px;
+        padding: 24px;
+    }
+    @media (max-width: 991.98px) {
+        .event-detail-container {
+            width: min(100% - 28px, 720px);
+            padding-top: 1rem;
+        }
+        .event-detail-hero {
+            grid-template-columns: 1fr;
+        }
+        .event-info-panel {
+            position: static;
+        }
+    }
+</style>
+
+<div class="mb-4 d-flex justify-content-between align-items-center gap-3 flex-wrap">
+    <a href="{{ url_for('main.home') }}" class="btn btn-light border rounded-pill px-3">
+        <i class="fas fa-arrow-left me-2"></i>Back to events
+    </a>
+    {% if session.get('student') %}
+    <button type="button" class="btn btn-outline-danger rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#reportModal" data-item-type="Event" data-item-id="{{ event.id }}">
+        <i class="fas fa-flag me-2"></i>Report Event
+    </button>
+    {% endif %}
+</div>
+
+<section class="event-detail-hero">
+    <div>
+        <div class="event-media-panel">
+            {% if event.image_file %}
+                {% if event.is_video %}
+                    <video controls playsinline>
+                        <source src="{{ url_for('static', filename='media/' + event.image_file) }}" type="video/mp4">
+                    </video>
+                {% else %}
+                    <img src="{{ url_for('static', filename='media/' + event.image_file) }}" alt="{{ event.title }}">
+                {% endif %}
+            {% else %}
+                <div class="event-empty-media">
+                    <i class="far fa-calendar-alt fa-5x"></i>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="event-comments-panel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold mb-0">Discussion</h4>
+                <span class="badge text-bg-light">{{ event.comments|length }} comments</span>
+            </div>
+            {% if session.get('student') %}
+            <form action="{{ url_for('main.add_comment', event_id=event.id) }}" method="POST" class="d-flex gap-2 mb-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="text" name="content" class="form-control rounded-pill" placeholder="Write a comment..." required>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Post</button>
+            </form>
+            {% endif %}
+
+            {% if event.comments %}
+                <div class="vstack gap-3">
+                    {% for comment in event.comments %}
+                    <div class="p-3 rounded-3 bg-light">
+                        <div class="d-flex justify-content-between gap-3">
+                            <strong>{{ comment.user_name }}</strong>
+                            <small class="text-muted">{{ comment.timestamp | time_ago }}</small>
+                        </div>
+                        <div class="text-muted mt-1">{{ comment.content }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">No comments yet. Start the discussion.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <aside class="event-info-panel">
+        <span class="badge rounded-pill text-bg-primary mb-3 px-3 py-2">{{ event.department }}</span>
+        <h1 class="event-title">{{ event.title }}</h1>
+        <p class="event-description mt-3">{{ event.description }}</p>
+
+        <div class="event-meta-grid">
+            <div class="event-meta">
+                <i class="fas fa-calendar-day"></i>
+                <div>
+                    <div class="small text-muted">Event date</div>
+                    <div class="fw-bold">{{ event.date }}</div>
+                </div>
+            </div>
+            <div class="event-meta">
+                <i class="fas fa-user"></i>
+                <div>
+                    <div class="small text-muted">Posted by</div>
+                    <div class="fw-bold">{{ event.posted_by or 'AU Daily' }}</div>
+                </div>
+            </div>
+            <div class="event-meta">
+                <i class="fas fa-users"></i>
+                <div>
+                    <div class="small text-muted">Registered students</div>
+                    <div class="fw-bold">{{ registration_count }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2">
+            {% if session.get('student') %}
+            <form action="{{ url_for('main.register_event', event_id=event.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn {{ 'btn-success' if is_registered else 'btn-primary' }} rounded-pill w-100 py-2 fw-bold">
+                    {% if is_registered %}<i class="fas fa-check me-2"></i>Going{% else %}<i class="fas fa-user-plus me-2"></i>Register for Event{% endif %}
+                </button>
+            </form>
+            {% endif %}
+            <form action="{{ url_for('main.like_event', event_id=event.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-light border rounded-pill w-100 py-2">
+                    <i class="{{ 'fas text-danger' if user_liked else 'far' }} fa-heart me-2"></i>{{ like_count }} likes
+                </button>
+            </form>
+        </div>
+    </aside>
+</section>
+{% endblock %}

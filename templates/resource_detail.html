@@ -73,7 +73,10 @@
                                 <p class="mb-0 text-dark">{{ comment.content }}</p>
                                 {% if (session.get('student') and session.get('student') == comment.user_id) or session.get('admin') %}
                                 <div class="text-end mt-1">
-                                    <a href="{{ url_for('delete_resource_comment', comment_id=comment.id) }}" class="text-danger small text-decoration-none">Delete</a>
+                                    <form action="{{ url_for('delete_resource_comment', comment_id=comment.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-link text-danger small text-decoration-none p-0">Delete</button>
+                                    </form>
                                 </div>
                                 {% endif %}
                             </div>
@@ -84,6 +87,7 @@
                     </div>
 
                     <form action="{{ url_for('view_resource', resource_id=resource.id) }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="input-group">
                             <input type="text" name="content" class="form-control" placeholder="Write a comment..." required>
                             <button class="btn btn-primary" type="submit"><i class="fas fa-paper-plane"></i></button>

@@ -4,8 +4,8 @@
 
 <br><br>
 
-## TABLE OF CONTENTS 
-                                                                                                         
+## TABLE OF CONTENTS
+
 | TITLE | PAGE NO. |
 | :--- | :--- |
 | **CHAPTER 1: INTRODUCTION** | **--01** |
@@ -31,58 +31,57 @@
 
 <br><br>
 
-## LIST OF FIGURES   
-   
+## LIST OF FIGURES
+
 | FIGURE NO. | NAME OF THE FIGURE | PAGE NO. |
 | :--- | :--- | :--- |
 | 01 | Use case Diagram | 20 |
 | 02 | Class Diagram | 21 |
 | 03 | Flow Chart | 28 |
 | 04 | Graphical User Interface (Login) | 41 |
-| 05 | Uploading the Image (Media Handling) | 42 |
-| 06 | Extracted Image Visibility after Decoding (Gallery) | 43 |
-| 07 | Classification Result Display (Department Filter) | 44 |
+| 05 | Media Handling (Image Upload) | 42 |
+| 06 | Campus Gallery View | 43 |
+| 07 | Department-Based Filtering | 44 |
 | 08 | Campus Feed Output | 45 |
-| 09 | User Activity Confusion Matrix (Stats) | 53 |
+| 09 | Admin Dashboard Analytics | 53 |
 | 10 | Sample Output (Event Feed) | 55 |
-| 11 | Label Distribution (Polls) | 56 |
+| 11 | Campus Polls Interface | 56 |
 | 12 | Initial User Interface (Welcome Page) | 58 |
-| 13 | UI after Uploading and Decoding (Profile View) | 59 |
+| 13 | Student Profile View | 59 |
 
 <br><br>
 
----
 
 ## CHAPTER 1: INTRODUCTION
 
 ### 1.1 Overview
-The "AU Daily - Campus Connect" is a comprehensive, centralized web-based portal developed exclusively for Andhra University. The primary objective of this system is to bridge the communication gap between the university administration, various departments, and the student body. The application provides a unified platform for sharing campus news, managing events, participating in polls, resolving lost and found items, and facilitating peer-to-peer communication via direct messaging.
+The "AU Daily - Campus Connect" is a comprehensive, centralized web portal developed exclusively for Andhra University. The primary objective of this system is to bridge the communication gap between the university administration, various departments, and the student body. The application provides a unified, secure platform for sharing campus news, managing events, participating in polls, resolving lost and found items, and facilitating peer-to-peer communication.
 
 ### 1.2 Computational Approach
 The project follows a modern Client-Server computational model structured into four key areas:
 
-- **Objective:** To develop a centralized, highly responsive web portal and an AI-driven Smart Placement Assistant that bridges campus communication gaps and provides tailored, data-backed career guidance.
-- **Methodology:** The system employs a Model-View-Controller (MVC) architecture alongside RESTful API design. It integrates a custom Content-Based Filtering algorithm for event recommendations.
+- **Objective:** To develop a centralized, responsive web portal that bridges campus communication gaps and provides tailored, data-backed academic and career guidance.
+- **Methodology:** The system employs a Model-View-Controller (MVC) architecture. It integrates a custom Content-Based Filtering algorithm for event recommendations and leverages a third-party Generative AI for the Smart Placement Assistant.
 - **Implementational Tools:**
   - **Client Side (Frontend):** HTML5, Jinja2 templating, Bootstrap 5, and custom CSS.
-  - **Server Side (Backend):** Python Flask framework and SQLAlchemy for database operations.
-- **Output:** The computational model successfully outputs a context-aware, responsive interface featuring dynamic campus news feeds, personalized academic event tracking, and actionable resume-matching metrics for placement preparation.
+  - **Server Side (Backend):** Python with the Flask framework, SQLAlchemy for database operations, and Werkzeug for security.
+- **Output:** The computational model successfully outputs a context-aware, responsive interface featuring dynamic campus news feeds, personalized event tracking, and actionable resume-matching metrics for placement preparation.
 
 ### 1.3 Existing System
-In the current existing environment, educational institutions rely heavily on fragmented communication channels. Important notices are often pinned to physical bulletin boards which many students do not see. Digital communication is usually scattered across unstructured WhatsApp or Telegram groups, where critical administrative announcements get buried under informal chat. There is no unified system strictly authenticated for verified students to access tailored campus data.
+In the existing environment, educational institutions rely on fragmented communication channels. Important notices are often confined to physical bulletin boards, which many students miss. Digital communication is scattered across unstructured WhatsApp or Telegram groups, where critical administrative announcements get buried under informal chat. There is no unified system strictly authenticated for verified students to access tailored campus data.
 
 ### 1.4 Problem Statement
 The primary issues observed are:
 - Information regarding campus events, placements, and deadlines is frequently delayed.
 - There is no centralized tracking mechanism for lost and found campus items.
 - Students lack an interconnected academic planner tailored to university events.
-- Security is a concern, as unauthorized individuals frequently join informal digital student groups.
+- Security is a major concern, as unauthorized individuals can join informal digital student groups, leading to misinformation and privacy risks.
 
 ---
 
 ## CHAPTER 2: LITERATURE SURVEY
 
-The literature survey involved analyzing existing Learning Management Systems (LMS) and campus networking tools like Blackboard, Canvas, and Google Classroom. While these tools excel at academic assignment tracking, they heavily lack the social, community-building elements of university life. Conversely, platforms like Facebook and WhatsApp provide the social element but lack strict academic organization and university-exclusive verification. 
+The literature survey involved analyzing existing Learning Management Systems (LMS) and campus networking tools like Blackboard, Canvas, and Google Classroom. While these tools excel at academic assignment tracking, they lack the social, community-building elements of university life. Conversely, platforms like Facebook and WhatsApp provide the social element but lack strict academic organization and university-exclusive verification. This project aims to synthesize the strengths of both—the structure of an LMS and the engagement of a social network—within a secure, university-specific context.
 
 ---
 
@@ -92,7 +91,7 @@ The literature survey involved analyzing existing Learning Management Systems (L
 The system design phase translates the problem statement into a robust architectural blueprint. It defines the core hardware and software prerequisites and structures the interaction between different modules of the application.
 
 ### 3.2 Software Requirement Specification Document
-- **Operating System:** Windows 10/11, macOS, or Linux.
+- **Operating System:** Windows, macOS, or Linux.
 - **Programming Language:** Python 3.10+
 - **Web Framework:** Flask (WSGI)
 - **Database Management:** MySQL Server 8.0+
@@ -102,7 +101,7 @@ The system design phase translates the problem statement into a robust architect
 **Figure 01: Use Case Diagram**
 
 ```mermaid
-flowchart LR
+graph LR
     %% Actors
     Student(["🎓 Verified Student"])
     Admin(["🛡️ Administrator"])
@@ -137,21 +136,18 @@ flowchart LR
 **Figure 02A: System Architecture Diagram**
 
 ```mermaid
-flowchart TD
-    U[Student or Admin Browser] --> V[Flask Routes and Controllers app.py]
-    V --> T[Jinja2 Templates in templates/]
-    T --> U
+graph TD
+    U[Browser] --> V{Flask App};
+    V -->|Renders| T[Jinja2 Templates];
+    T --> U;
 
-    V --> BL[Business Logic Modules]
-    BL --> ORM[SQLAlchemy ORM Models]
-    ORM --> DB[(MySQL Database)]
+    V -->|Executes Logic| BL[Blueprints: auth.py, app.py];
+    BL -->|Uses| ORM[SQLAlchemy Models];
+    ORM <--> DB[(MySQL Database)];
 
-    V --> FS[File Storage in static/media and uploads]
-    V --> MAIL[Flask-Mail SMTP Service]
-    V --> AI[Google Gemini API]
-
-    MG[Flask-Migrate Alembic] --> DB
-    ENV[.env Configuration and Secret Keys] --> V
+    BL -->|Sends Email| MAIL[Flask-Mail SMTP];
+    BL -->|Calls AI| AI[Google Gemini API];
+    BL -->|Manages Files| FS[File Storage];
 ```
 
 *(INSERT FIGURE 02: Class Diagram HERE)*
@@ -161,7 +157,7 @@ The platform’s software architecture is fundamentally built upon the Model-Vie
 
 **1. The Model Layer (Data Management)**
 The Model layer is exclusively responsible for defining and managing the data logic of the application. In "AU Daily", this is strictly handled by `flask_sqlalchemy`, an Object-Relational Mapper (ORM) that acts as a dynamic bridge between the Python backend and the underlying MySQL database.
-- **Entity Mapping:** Complex relational database tables are translated directly into object-oriented Python classes. For instance, the `Student`, `Event`, `NewsPost`, and `PrivateMessage` models define the exact schema, data types, and relationships.
+- **Entity Mapping:** Relational database tables are mapped to Python classes (e.g., `Student`, `Event`, `NewsPost`). This allows developers to interact with data using object-oriented code instead of raw SQL.
 - **Data Integrity:** The models enforce strict database constraints at the application level. This includes ensuring unique student registration IDs, setting mandatory fields, and cascading foreign-key relationships (e.g., securely linking a `Comment` to a specific `Event` and `Student`).
 - **Database Versioning:** Through the integration of Flask-Migrate (Alembic), the Model layer maintains meticulous version control of the database architecture, allowing for seamless schema upgrades without jeopardizing existing user data.
 
@@ -169,25 +165,25 @@ The Model layer is exclusively responsible for defining and managing the data lo
 The View layer dictates exactly how data is presented to the end user. It is completely isolated from the backend business logic, ensuring that any user interface enhancements do not interfere with critical database operations.
 - **Templating Engine:** Located inside the `templates/` directory, the views heavily utilize the Jinja2 templating engine. This allows dynamic Python data (such as user profiles and real-time event counts) to be securely and efficiently injected directly into the HTML interfaces.
 - **Frontend Technologies:** The visual layout is constructed using semantic HTML5, CSS3, and the Bootstrap 5 framework. The design language incorporates modern UI trends such as glassmorphism, responsive navigation components, and a desktop-optimized layout to ensure a professional academic aesthetic.
-- **Dynamic Rendering:** Views respond directly to the Controller's output, conditionally rendering access-restricted elements like the Admin Dashboard, personalized Student Academic Planners, or AI Assistant portals based on the active user session state.
+- **Dynamic Rendering:** Views respond to the Controller's output, conditionally rendering access-restricted elements like the Admin Dashboard or personalized Student Planners based on the active user session.
 
 **3. The Controller Layer (Business Logic and Routing)**
-The Controller acts as the application's central orchestrator. In this architecture, the `app.py` script serves as the primary controller, intercepting all incoming HTTP requests from the client side, processing them according to predefined business rules, and returning the appropriate View.
-- **Routing and Endpoints:** Utilizing Flask's robust routing decorators (e.g., `@app.route`), the controller maps specific URLs to designated backend Python functions.
+The Controller acts as the application's central orchestrator. It intercepts all incoming HTTP requests, processes them according to predefined business rules, and returns the appropriate View.
+- **Routing and Endpoints:** Utilizing Flask's robust routing decorators (e.g., `@app.route` and `@auth_bp.route`), the controller maps specific URLs to designated backend Python functions. This logic is modularized into Blueprints, such as `auth.py`, to keep the codebase organized.
 - **Data Orchestration:** When a user requests to view the campus feed, the Controller queries the respective Models for data, processes necessary logic (such as calculating the recommendation priority scores for events), and passes the refined data payload to the View for rendering.
-- **External Integrations:** The Controller also handles all complex third-party API interactions. This notably includes processing file streams and prompt injections through the Google Gemini API for the Smart Placement Assistant, as well as managing SMTP protocols via Flask-Mail to deliver secure One-Time Passwords (OTPs) for account recovery.
+- **External Integrations:** The Controller handles all third-party API interactions, including processing file streams for the Google Gemini API and managing SMTP protocols via Flask-Mail for sending verification and password reset emails.
 
 **Summary of Interaction:**
-Together, these three components create a synchronized loop: the user interacts with the View, the View sends an HTTP request to the Controller, the Controller updates or retrieves information from the Model, and finally, the Model returns the requested data back to the Controller to render the newly updated View. This MVC structure guarantees high performance, robust security, and a seamless user experience across the AU Daily platform.
+Together, these three components create a synchronized loop: the user interacts with the View, which sends an HTTP request to a Controller endpoint. The Controller updates or retrieves information from the Model, and the Model returns the requested data back to the Controller to render the newly updated View. This MVC structure guarantees high performance, robust security, and a seamless user experience.
 
 **Figure 03: Flow Chart (Smart Event Recommendation Algorithm)**
 
 ```mermaid
-flowchart TD
+graph TD
     Start([Student Logs In]) --> Retrieve[Retrieve Student's Department & Interests]
     Retrieve --> Fetch[Fetch All Upcoming Campus Events]
     Fetch --> Evaluate{Is Event Dept == Student Dept?}
-    
+
     Evaluate -->|Yes| DirectMatch[Assign +10 Priority Points]
     Evaluate -->|No, it's 'General'| GenMatch[Assign +5 Priority Points]
     Evaluate -->|No| NoMatch[Assign 0 Points]
@@ -195,12 +191,12 @@ flowchart TD
     DirectMatch --> KeywordScan[Scan Event Content for Industry Keywords]
     GenMatch --> KeywordScan
     NoMatch --> KeywordScan
-    
+
     KeywordScan --> KeywordCheck{Keywords Found?}
     KeywordCheck -->|Yes| AddBonus[Add +2 Points per Match]
     KeywordCheck -->|No| Finalize[Finalize Total Recommendation Score]
     AddBonus --> Finalize
-    
+
     Finalize --> Sort[Sort Events by Total Score Descending]
     Sort --> Render([Render Feed with 'Recommended' Badges])
 ```
@@ -224,7 +220,7 @@ The presentation layer is strictly designed for desktop-optimized viewing, ensur
 **4. Third-Party Integrations & Utilities**
 The system relies on several external libraries to provide advanced functionality:
 - **PyPDF2:** A pure-Python library utilized in the Placement Assistant module to extract raw textual data from complex, multi-page student resume PDFs.
-- **Google Gemini API:** The backbone of the platform's AI capabilities, specifically utilizing the `gemini-2.5-flash` model for high-speed, context-aware natural language processing.
+- **Google Gemini API:** The backbone of the platform's AI capabilities, specifically utilizing the `gemini-1.5-pro` model for high-speed, context-aware natural language processing.
 
 ### 4.2 Core Implementation Modules & Sample Code
 The following snippets represent the core logical pillars of the platform: Whitelist Authentication, the Content-Based Filtering engine, and the AI-driven Placement Assistant.
@@ -233,18 +229,22 @@ The following snippets represent the core logical pillars of the platform: White
 To ensure that only verified Andhra University students can access the portal, the registration route implements a strict cross-reference check against the `AllowedStudent` database model, which is populated via the `allowed_students.csv` file.
 
 ```python
-@app.route('/student/register', methods=['POST'])
+@auth_bp.route("/student/register", methods=["GET", "POST"])
+@require_csrf
 def student_register():
-    student_id = request.form['student_id'].strip()
-    # 1. Verification against administrative whitelist
-    if not AllowedStudent.query.filter_by(student_id=student_id).first():
-        flash("Only AU students can register")
-        return redirect(url_for('student_register'))
-    
-    # 2. Check for duplicate accounts
-    if Student.query.filter_by(student_id=student_id).first():
-        flash("This registration number has already been registered.")
-        return redirect(url_for('student_register'))
+    # ... (code to handle existing sessions)
+
+    if request.method == "POST":
+        student_id = request.form.get("student_id", "").strip()
+        # ... (other form fields)
+
+        if not AllowedStudent.query.filter_by(student_id=student_id).first():
+            flash("This Student ID is not authorized to register...")
+            return redirect(url_for("auth.student_register"))
+
+        if Student.query.filter_by(student_id=student_id).first():
+            flash("This Student ID is already registered. Please login.")
+            return redirect(url_for("auth.student_login"))
 ```
 
 **2. Smart Event Recommendation Engine**  
@@ -292,7 +292,7 @@ prompt = f"Job Details/Link: {job_link}\\n\\nCandidate Resume Text:\\n{resume_te
 # 4. Generate Analysis with Search Grounding Enabled
 search_tool = types.Tool(google_search=types.GoogleSearch())
 response = client.models.generate_content(
-    model='gemini-2.0-flash',
+    model='gemini-1.5-flash-latest',
     contents=prompt,
     config=types.GenerateContentConfig(
         system_instruction=system_instruction,
@@ -314,27 +314,25 @@ The integration of the Python Flask framework with the SQLAlchemy Object-Relatio
 **2. User Interface and Experience (UI/UX)**
 The frontend presentation layer, built utilizing Bootstrap 5 and Jinja2 templating, successfully delivered a modern, desktop-optimized experience. The implementation of contemporary design principles, such as glassmorphism, contextual badging, and a centralized dark-mode toggle, significantly enhanced user comfort and academic readability. The interface remained highly intuitive, allowing users to navigate seamlessly between the Campus News Feed, Academic Planner, and Lost & Found hubs without cognitive overload.
 
-**3. AI Smart Placement Assistant Efficacy**
-One of the most notable results was the accuracy and practical utility of the Smart Placement Assistant. By leveraging the Google Gemini API combined with Search Grounding, the platform bypassed the standard limitations of static, pre-trained LLM data. The AI successfully parsed unstructured PDF resume text using `PyPDF2` and dynamically cross-referenced it with live job requirements fetched directly from the internet. The resulting Markdown reports provided students with highly accurate Match Percentages and actionable missing-skill recommendations, proving the module's viability as a digital career counselor.
+**3. Resume Analyzer Efficacy**
+The local resume analyzer demonstrated significant utility by providing instant, actionable feedback. By using a heuristic-based approach, the tool successfully identified missing contact information, weak action verbs, and a lack of quantifiable achievements. The generated score and list of improvements gave students a clear path to enhancing their resumes for better ATS (Applicant Tracking System) compatibility and overall professional appeal.
 
 **4. Security and Authentication Integrity**
 The platform's strict authentication protocols performed flawlessly during evaluation. The system successfully blocked any unauthorized registration attempts by strictly cross-referencing user inputs against the dynamic `allowed_students.csv` whitelist. Furthermore, the Flask-Mail OTP implementation ensured secure, time-sensitive password recovery, actively preventing session hijacking and maintaining the exclusive integrity of the university's digital environment.
-The platform's strict authentication protocols performed flawlessly during evaluation. The system successfully blocked any unauthorized registration attempts by strictly cross-referencing user inputs against the dynamic `allowed_students.csv` whitelist.
 
 Below are the graphical representations of the platform's resulting interfaces and output data:
 
 *(INSERT FIGURE 04: Graphical User Interface (Login) HERE)*
-*(INSERT FIGURE 05: Uploading the Image (Media Handling) HERE)*
-*(INSERT FIGURE 06: Extracted Image Visibility after Decoding (Gallery) HERE)*
-*(INSERT FIGURE 07: Classification Result Display (Department Filter) HERE)*
+*(INSERT FIGURE 05: Media Handling (Image Upload) HERE)*
+*(INSERT FIGURE 06: Campus Gallery View HERE)*
+*(INSERT FIGURE 07: Department-Based Filtering HERE)*
 *(INSERT FIGURE 08: Campus Feed Output HERE)*
-*(INSERT FIGURE 09: User Activity Confusion Matrix (Stats) HERE)*
+*(INSERT FIGURE 09: Admin Dashboard Analytics HERE)*
 *(INSERT FIGURE 10: Sample Output (Event Feed) HERE)*
-*(INSERT FIGURE 11: Label Distribution (Polls) HERE)*
+*(INSERT FIGURE 11: Campus Polls Interface HERE)*
 *(INSERT FIGURE 12: Initial User Interface (Welcome Page) HERE)*
-*(INSERT FIGURE 13: UI after Uploading and Decoding (Profile View) HERE)*
+*(INSERT FIGURE 13: Student Profile View HERE)*
 
----
 
 ## CHAPTER 7: CONCLUSION AND FUTURE SCOPE
 
@@ -354,7 +352,7 @@ While the current iteration of AU Daily delivers a comprehensive suite of featur
 ## CHAPTER 8: REFERENCES
 
 1. Grinberg, M. (2018). *Flask Web Development: Developing Web Applications with Python* (2nd ed.). O'Reilly Media. (Reference for core backend framework and architecture).
-2. Google GenAI Developer Documentation. (2024). *Gemini API Reference Guide & Search Grounding*. Retrieved from Google AI Developer Portal. (Reference for Smart Placement Assistant implementation).
+2. Freeman, E., et al. (2004). *Head First Design Patterns: Building Extensible and Maintainable Object-Oriented Software*. O'Reilly Media. (Reference for the MVC Architectural approach).
 3. Freeman, E., et al. (2004). *Head First Design Patterns: Building Extensible and Maintainable Object-Oriented Software*. O'Reilly Media. (Reference for the MVC Architectural approach).
 4. SQLAlchemy Documentation. (2024). *Object Relational Tutorial and Database Abstraction*. Retrieved from SQLAlchemy official documentation. 
 5. Pallets Projects. (2024). *Werkzeug WSGI Web Application Library*. (Reference for cryptographic hashing protocols `pbkdf2:sha256` and safe file routing). 
