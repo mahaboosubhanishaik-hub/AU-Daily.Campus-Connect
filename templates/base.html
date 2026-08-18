@@ -138,11 +138,38 @@
             min-width: max-content;
             font-weight: 800;
             letter-spacing: 0;
+            gap: .62rem;
+            padding: .34rem .72rem .34rem .42rem;
+            border: 1px solid rgba(37, 99, 235, .14);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, .72);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
         }
         .navbar-brand img {
-            height: 36px;
-            width: 36px;
-            object-fit: cover;
+            height: 42px;
+            width: 42px;
+            object-fit: contain;
+            padding: 5px;
+            border: 1px solid rgba(14, 165, 233, .22);
+            border-radius: 14px;
+            background: #fff;
+        }
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1;
+        }
+        .brand-name {
+            color: #155eef;
+            font-size: 1.08rem;
+            font-weight: 900;
+        }
+        .brand-tagline {
+            margin-top: .18rem;
+            color: #64748b;
+            font-size: .68rem;
+            font-weight: 800;
+            text-transform: uppercase;
         }
         @media (max-width: 1199.98px) {
             .app-nav-top {
@@ -166,10 +193,18 @@
                 padding-right: .85rem;
             }
             .navbar-brand {
-                font-size: 1.12rem;
+                padding: .26rem .48rem .26rem .32rem;
             }
             .navbar-brand img {
-                height: 28px;
+                width: 34px;
+                height: 34px;
+                padding: 4px;
+            }
+            .brand-name {
+                font-size: .98rem;
+            }
+            .brand-tagline {
+                display: none;
             }
             .navbar-toggler {
                 display: none;
@@ -427,8 +462,11 @@
             <div class="app-nav-shell">
                 <div class="app-nav-top">
                     <a class="navbar-brand text-primary d-flex align-items-center" href="{{ url_for('main.home') }}">
-                        <img src="{{ url_for('static', filename='AUlogo.jpg') }}" alt="AU Logo" class="me-2 rounded">
-                        AUDaily
+                        <img src="{{ url_for('static', filename='AUlogo.jpg') }}" alt="AU Logo">
+                        <span class="brand-text">
+                            <span class="brand-name">AUDaily</span>
+                            <span class="brand-tagline">Campus Connect</span>
+                        </span>
                     </a>
                     {% if session.get('student') or session.get('admin') %}
                     <form action="{{ url_for('main.global_search') }}" method="GET" class="global-search-form">
@@ -741,7 +779,6 @@
                 navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
                         console.log('ServiceWorker registration successful');
-                        registration.update();
                     })
                     .catch(err => {
                         console.log('ServiceWorker registration failed: ', err);
@@ -771,28 +808,6 @@
         document.addEventListener('hidden.bs.modal', clearStaleModalState);
     </script>
 
-    {% if session.get('student') %}
-    <script>
-        // Real-time notifications via Server-Sent Events
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!!window.EventSource) {
-                const source = new EventSource('/stream');
-                source.onmessage = function(event) {
-                    const data = JSON.parse(event.data);
-                    // Ask for permission if not already granted
-                    if (Notification.permission !== 'granted') {
-                        Notification.requestPermission();
-                    }
-                    // Create a browser notification
-                    new Notification('AU Daily Notification', {
-                        body: data.message,
-                        icon: "{{ url_for('static', filename='AUlogo.jpg') }}"
-                    });
-                };
-            }
-        });
-    </script>
-    {% endif %}
     <!-- Modals Block -->
     {% block modals %}{% endblock %}
     {% block scripts %}{% endblock %}

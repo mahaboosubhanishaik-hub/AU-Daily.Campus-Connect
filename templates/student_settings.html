@@ -1,23 +1,67 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    .settings-title-kicker {
+        color: #155eef;
+        font-size: 1rem;
+        font-weight: 900;
+        letter-spacing: .08em;
+    }
+    .profile-photo-wrap {
+        position: relative;
+        display: inline-block;
+    }
+    .profile-photo {
+        width: 132px;
+        height: 132px;
+        object-fit: cover;
+    }
+    .photo-icon-btn {
+        position: absolute;
+        width: 38px;
+        height: 38px;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, .18);
+    }
+    .photo-change-btn {
+        right: 2px;
+        bottom: 4px;
+        cursor: pointer;
+    }
+    .photo-remove-btn {
+        left: 2px;
+        bottom: 4px;
+    }
+</style>
 <div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <div><p class="text-uppercase text-primary small fw-bold mb-1">Account</p><h3 class="fw-bold mb-0">Edit profile</h3></div>
+            <div><p class="text-uppercase settings-title-kicker mb-1">Account</p><h3 class="fw-bold mb-0">Edit profile</h3></div>
             <a href="{{ url_for('student_profile') }}" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="fas fa-arrow-left me-1"></i> Profile</a>
         </div>
 
         <div class="card border-0 shadow-sm mb-4 overflow-hidden">
             <div class="card-body p-4 text-center">
-                <img src="{{ url_for('static', filename='media/' + (student.profile_pic or 'default.jpg')) }}" class="rounded-circle mb-3 border shadow-sm" style="width:124px;height:124px;object-fit:cover;" alt="Profile picture">
-                <h5 class="fw-bold mb-1">Profile picture</h5><p class="text-muted small mb-3">Choose a JPG, PNG, GIF, or WEBP photo.</p>
-                <form id="profilePhotoForm" action="{{ url_for('update_profile_pic') }}" method="POST" enctype="multipart/form-data" class="d-inline">
+                <div class="profile-photo-wrap mb-3">
+                    <img src="{{ url_for('static', filename='media/' + (student.profile_pic or 'default.jpg')) }}" class="profile-photo rounded-circle border shadow-sm" alt="Profile picture">
+                    <label class="photo-icon-btn photo-change-btn bg-primary text-white" for="profilePicInput" title="Choose new photo" aria-label="Choose new photo"><i class="fas fa-camera"></i></label>
+                    {% if student.profile_pic %}
+                    <form action="{{ url_for('remove_profile_pic') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="photo-icon-btn photo-remove-btn btn btn-danger p-0" title="Remove photo" aria-label="Remove photo" onclick="return confirm('Remove profile picture?')"><i class="fas fa-trash-alt small"></i></button>
+                    </form>
+                    {% endif %}
+                </div>
+                <h5 class="fw-bold mb-1">Profile picture</h5><p class="text-muted small mb-3">JPG, PNG, GIF, or WEBP photo.</p>
+                <form id="profilePhotoForm" action="{{ url_for('update_profile_pic') }}" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <label class="btn btn-primary rounded-pill px-4 mb-0" for="profilePicInput"><i class="fas fa-image me-1"></i> Choose new photo</label>
                     <input type="file" name="profile_pic" id="profilePicInput" class="d-none" accept=".jpg,.jpeg,.png,.gif,.webp" required>
                 </form>
-                {% if student.profile_pic %}<form action="{{ url_for('remove_profile_pic') }}" method="POST" class="d-inline ms-1"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-outline-danger rounded-pill px-4" onclick="return confirm('Remove profile picture?')">Remove</button></form>{% endif %}
                 <p id="uploadStatus" class="small text-muted mt-3 mb-0 d-none"><span class="spinner-border spinner-border-sm me-1"></span>Uploading your photo…</p>
             </div>
         </div>
@@ -59,7 +103,7 @@ const photoInput = document.getElementById('profilePicInput');
 photoInput.addEventListener('change', function () {
     if (!this.files.length) return;
     document.getElementById('uploadStatus').classList.remove('d-none');
-    document.querySelector('label[for="profilePicInput"]').classList.add('disabled');
+    document.querySelector('label[for="profilePicInput"]').classList.add('opacity-50');
     document.getElementById('profilePhotoForm').submit();
 });
 </script>

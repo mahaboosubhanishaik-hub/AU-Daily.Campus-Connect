@@ -19,9 +19,9 @@
         padding: 48px;
         color: #ffffff;
         background:
-            linear-gradient(rgba(18, 52, 59, 0.82), rgba(18, 52, 59, 0.82)),
-            url("{{ url_for('static', filename='AUlogo.jpg') }}") center/220px no-repeat,
-            linear-gradient(135deg, #123b88 0%, #155eef 58%, #60a5fa 100%);
+            radial-gradient(circle at 22% 24%, rgba(255, 255, 255, 0.2), transparent 30%),
+            linear-gradient(rgba(14, 43, 55, 0.9), rgba(14, 43, 55, 0.84)),
+            linear-gradient(135deg, #0f766e 0%, #155eef 54%, #7c3aed 100%);
     }
 
     .auth-panel-content {
@@ -105,12 +105,42 @@
         margin: 0 auto;
     }
 
+    .auth-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 14px 10px 10px;
+        border: 1px solid rgba(37, 99, 235, 0.16);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
+    }
+
     .auth-logo {
-        width: 56px;
-        height: 56px;
-        object-fit: cover;
-        border-radius: 8px;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
+        padding: 8px;
+        border: 1px solid rgba(14, 165, 233, 0.22);
+        border-radius: 18px;
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 10px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    .auth-brand-name {
+        color: #0f172a;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-size: 1.08rem;
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    .auth-brand-mark {
+        display: block;
+        margin-top: 5px;
+        color: #64748b;
+        font-size: 0.76rem;
+        font-weight: 700;
     }
 
     .auth-heading {
@@ -220,7 +250,13 @@
 
     <div class="auth-form-side">
         <div class="auth-card">
-            <img src="{{ url_for('static', filename='AUlogo.jpg') }}" alt="AU Logo" class="auth-logo">
+            <div class="auth-brand" aria-label="AUDaily Campus Connect">
+                <img src="{{ url_for('static', filename='AUlogo.jpg') }}" alt="AU Logo" class="auth-logo">
+                <span>
+                    <span class="auth-brand-name">AUDaily</span>
+                    <span class="auth-brand-mark">Campus Connect</span>
+                </span>
+            </div>
             <h2 class="auth-heading">Student Sign In</h2>
             <p class="auth-subtitle mb-4">Use your student ID or registered email to continue.</p>
 
@@ -253,7 +289,6 @@
 
             <div class="auth-switch text-center">
                 <p class="small text-muted mb-2">New student? <a href="{{ url_for('student_register') }}" class="fw-bold text-decoration-none">Create account</a></p>
-                <a href="{{ url_for('admin_login') }}" class="small text-muted text-decoration-none">Switch to admin login</a>
             </div>
         </div>
     </div>

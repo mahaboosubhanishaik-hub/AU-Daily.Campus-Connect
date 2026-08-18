@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import inspect, or_, func
+from sqlalchemy.orm import selectinload
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
@@ -216,18 +217,32 @@ GEMINI_API_KEY = (
 
 gemini_client = None
 
-if genai and GEMINI_API_KEY:
-    try:
-        # Initialize Gemini client using the installed google-genai SDK.
-        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        print("Gemini AI initialized successfully.")
-    except Exception as e:
-        print(f"WARNING: Gemini API could not be initialized. AI features will be disabled. Error: {e}")
-        GEMINI_API_KEY = None
-
-elif GEMINI_API_KEY and not genai:
+if GEMINI_API_KEY and not genai:
     print("WARNING: google-genai package is not installed. AI features will be disabled.")
     GEMINI_API_KEY = None
+
+
+def get_gemini_client():
+    """Initialize Gemini only when an AI feature actually needs it."""
+    global gemini_client, GEMINI_API_KEY
+    if gemini_client or not genai or not GEMINI_API_KEY:
+        return gemini_client
+
+    try:
+        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        current_app.logger.info("Gemini AI initialized successfully.")
+    except Exception as e:
+        current_app.logger.warning(
+            "Gemini API could not be initialized. AI features will be disabled. Error: %s",
+            e,
+        )
+        GEMINI_API_KEY = None
+    return gemini_client
+
+
+def clear_nav_count_cache():
+    session.pop("nav_counts_cache", None)
+
 
 def login_rate_limit_key(account_hint):
     """Limit repeated guesses by both source address and account identifier."""
@@ -935,6 +950,10 @@ class Notification(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     timestamp = db.Column(db.DateTime, default=datetime.now, index=True)
 
+    __table_args__ = (
+        db.Index('ix_notification_user_unread', 'user_id', 'is_read'),
+    )
+
 class EventRegistration(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(20), nullable=False)
@@ -1133,6 +1152,12 @@ class PrivateMessage(db.Model):
     image_file = db.Column(db.String(200), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.now, index=True)
     is_read = db.Column(db.Boolean, default=False)
+
+    __table_args__ = (
+        db.Index('ix_private_message_receiver_unread', 'receiver_id', 'is_read'),
+        db.Index('ix_private_message_sender_timestamp', 'sender_id', 'timestamp'),
+        db.Index('ix_private_message_receiver_timestamp', 'receiver_id', 'timestamp'),
+    )
 
 class AnonymousDoubt(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1377,7 +1402,7 @@ def home():
     student = None
     current_user_name = None
     if 'student' in session:
-        student = Student.query.filter_by(student_id=session['student']).first()
+        student = getattr(g, "current_student", None)
         if not student:
             session.clear()
             return redirect(url_for('main.home'))
@@ -1390,7 +1415,7 @@ def home():
     upcoming_events = Event.query.filter(Event.date >= today_str, Event.date <= next_week).order_by(Event.date.asc()).limit(4).all()
 
     # 3. Recommended Events (Top 4)
-    all_events = Event.query.order_by(Event.id.desc()).limit(50).all() # Fetch a pool of recent events
+    all_events = Event.query.order_by(Event.id.desc()).limit(20).all() # Fetch a pool of recent events
     recommended_events = []
     if student:
         dept_interests_obj = DepartmentInterest.query.filter_by(department=student.department).first()
@@ -2016,8 +2041,9 @@ def notifications():
         return redirect(url_for('auth.student_login'))
 
     user_id = session['student']
-    # Fetch all notifications, newest first
-    notifs = Notification.query.filter_by(user_id=user_id).order_by(Notification.timestamp.desc()).all()
+    notifs = Notification.query.filter_by(user_id=user_id).order_by(
+        Notification.timestamp.desc()
+    ).limit(100).all()
 
     return render_template("notifications.html", notifications=notifs)
 
@@ -2035,6 +2061,7 @@ def mark_notification_read(id):
     if notif.user_id == session['student']:
         notif.is_read = True
         db.session.commit()
+        clear_nav_count_cache()
     return redirect(url_for('main.notifications'))
 
 @bp.route('/notifications/mark_all_read', methods=['GET', 'POST'])
@@ -2050,6 +2077,7 @@ def mark_all_notifications_read():
     user_id = session['student']
     Notification.query.filter_by(user_id=user_id, is_read=False).update({'is_read': True})
     db.session.commit()
+    clear_nav_count_cache()
     return redirect(url_for('main.notifications'))
 
 @bp.route('/like/<int:event_id>', methods=['GET', 'POST'])
@@ -2301,13 +2329,24 @@ def doubts():
     if 'student' not in session and 'admin' not in session:
         return redirect(url_for('auth.student_login'))
 
-    doubts_list = AnonymousDoubt.query.order_by(AnonymousDoubt.timestamp.desc()).all()
+    doubts_list = AnonymousDoubt.query.options(
+        selectinload(AnonymousDoubt.replies)
+    ).order_by(AnonymousDoubt.timestamp.desc()).limit(50).all()
+
+    author_names = {}
+    if 'admin' in session:
+        author_ids = {doubt.user_id for doubt in doubts_list}
+        for doubt in doubts_list:
+            author_ids.update(reply.user_id for reply in doubt.replies if reply.user_id != session.get('admin'))
+        author_names = {
+            student.student_id: student.name
+            for student in Student.query.filter(Student.student_id.in_(author_ids)).all()
+        } if author_ids else {}
 
     # Standardize name display for anonymity (Works for both Admin and Student)
     for doubt in doubts_list:
         if 'admin' in session:
-            author = Student.query.filter_by(student_id=doubt.user_id).first()
-            doubt.display_name = author.name if author else "Unknown Student"
+            doubt.display_name = author_names.get(doubt.user_id, "Unknown Student")
         else:
             doubt.display_name = "Anonymous Student"
 
@@ -2315,8 +2354,7 @@ def doubts():
             if reply.user_id == session.get('admin'):
                 reply.display_name = "Admin"
             elif 'admin' in session:
-                author = Student.query.filter_by(student_id=reply.user_id).first()
-                reply.display_name = author.name if author else "Unknown Peer"
+                reply.display_name = author_names.get(reply.user_id, "Unknown Peer")
             else:
                 reply.display_name = "Anonymous Peer"
 
@@ -2415,7 +2453,7 @@ def polls():
         return redirect(url_for('auth.student_login'))
 
     user_id = session.get('student') or session.get('admin')
-    polls_list = Poll.query.order_by(Poll.timestamp.desc()).all()
+    polls_list = Poll.query.order_by(Poll.timestamp.desc()).limit(30).all()
 
     # Process polls to calculate percentages
     for poll in polls_list:
@@ -2956,9 +2994,10 @@ def admin_notifications():
     if 'admin' not in session:
         return redirect(url_for('main.admin_login'))
 
-    notifications = AdminNotification.query.order_by(AdminNotification.timestamp.desc()).all()
+    notifications = AdminNotification.query.order_by(AdminNotification.timestamp.desc()).limit(100).all()
     AdminNotification.query.filter_by(is_read=False).update({'is_read': True}, synchronize_session=False)
     db.session.commit()
+    clear_nav_count_cache()
     return render_template('admin_notifications.html', notifications=notifications)
 
 
@@ -4254,7 +4293,7 @@ def notice_board():
     if dept_filter != 'All':
         query = query.filter_by(department=dept_filter)
 
-    notices = query.order_by(Notice.is_urgent.desc(), Notice.timestamp.desc()).all()
+    notices = query.order_by(Notice.is_urgent.desc(), Notice.timestamp.desc()).limit(100).all()
 
     # Create a list of unique departments from notices for the filter dropdown
     notice_departments = db.session.query(Notice.department).distinct().all()
@@ -4302,7 +4341,7 @@ def admin_manage_notices():
         return redirect(url_for('main.admin_manage_notices'))
 
     # For GET request
-    notices = Notice.query.order_by(Notice.timestamp.desc()).all()
+    notices = Notice.query.order_by(Notice.timestamp.desc()).limit(100).all()
     # Add 'General' and 'Exam Section' to the list of departments for the form
     form_departments = sorted(list(set(DEPARTMENTS + ['General', 'Exam Section'])))
     return render_template("admin_manage_notices.html", notices=notices, departments=form_departments)
@@ -4419,25 +4458,42 @@ def inbox():
 
     current_user = session['student']
 
-    # Get all messages involving the current user to find unique conversations
     messages = PrivateMessage.query.filter(
         or_(PrivateMessage.sender_id == current_user, PrivateMessage.receiver_id == current_user)
-    ).order_by(PrivateMessage.timestamp.desc()).all()
+    ).order_by(PrivateMessage.timestamp.desc()).limit(200).all()
+
+    other_user_ids = {
+        msg.receiver_id if msg.sender_id == current_user else msg.sender_id
+        for msg in messages
+    }
+    students_by_id = {
+        student.student_id: student
+        for student in Student.query.filter(Student.student_id.in_(other_user_ids)).all()
+    } if other_user_ids else {}
+
+    unread_counts = {
+        sender_id: count
+        for sender_id, count in db.session.query(
+            PrivateMessage.sender_id,
+            func.count(PrivateMessage.id)
+        ).filter(
+            PrivateMessage.receiver_id == current_user,
+            PrivateMessage.is_read.is_(False),
+            PrivateMessage.sender_id.in_(other_user_ids)
+        ).group_by(PrivateMessage.sender_id).all()
+    } if other_user_ids else {}
 
     conversations = {}
     for msg in messages:
         other_user_id = msg.receiver_id if msg.sender_id == current_user else msg.sender_id
         if other_user_id not in conversations:
-            other_student = Student.query.filter_by(student_id=other_user_id).first()
+            other_student = students_by_id.get(other_user_id)
             if other_student:
                 conversations[other_user_id] = {
                     'user': other_student,
                     'latest_msg': msg,
-                    'unread_count': 0
+                    'unread_count': unread_counts.get(other_user_id, 0)
                 }
-        if msg.receiver_id == current_user and not msg.is_read:
-            if other_user_id in conversations:
-                conversations[other_user_id]['unread_count'] += 1
 
     return render_template("inbox.html", conversations=conversations.values())
 
@@ -4469,14 +4525,18 @@ def chat(student_id):
             new_msg = PrivateMessage(sender_id=current_user, receiver_id=student_id, content=content.strip(), image_file=image_filename)
             db.session.add(new_msg)
             db.session.commit()
+            clear_nav_count_cache()
             return redirect(url_for('main.chat', student_id=student_id))
 
     # Mark unread messages as read when opening chat
-    unread_msgs = PrivateMessage.query.filter_by(sender_id=student_id, receiver_id=current_user, is_read=False).all()
-    for msg in unread_msgs:
-        msg.is_read = True
-    if unread_msgs:
+    unread_updated = PrivateMessage.query.filter_by(
+        sender_id=student_id,
+        receiver_id=current_user,
+        is_read=False
+    ).update({'is_read': True}, synchronize_session=False)
+    if unread_updated:
         db.session.commit()
+        clear_nav_count_cache()
 
     # Get Chat History
     messages = PrivateMessage.query.filter(
@@ -4484,7 +4544,8 @@ def chat(student_id):
             (PrivateMessage.sender_id == current_user) & (PrivateMessage.receiver_id == student_id),
             (PrivateMessage.sender_id == student_id) & (PrivateMessage.receiver_id == current_user)
         )
-    ).order_by(PrivateMessage.timestamp.asc()).all()
+    ).order_by(PrivateMessage.timestamp.desc()).limit(150).all()
+    messages.reverse()
 
     return render_template("chat.html", other_user=other_user, messages=messages, current_user=current_user)
 
@@ -4527,7 +4588,10 @@ def planner():
     if 'student' not in session:
         return redirect(url_for('auth.student_login'))
 
-    tasks = Task.query.filter_by(user_id=session['student']).order_by(Task.is_completed.asc(), Task.timestamp.desc()).all()
+    tasks = Task.query.filter_by(user_id=session['student']).order_by(
+        Task.is_completed.asc(),
+        Task.timestamp.desc()
+    ).limit(100).all()
     return render_template("planner.html", tasks=tasks)
 
 @bp.route('/add_task', methods=['POST'])
@@ -5021,32 +5085,7 @@ def offline_page():
 
 @bp.route('/stream')
 def stream():
-    if 'student' not in session:
-        abort(401)
-
-    def event_stream():
-        last_check_time = datetime.now()
-        with app.app_context():
-            student_id = session.get('student')
-            if not student_id:
-                return
-
-            while True:
-                # In a production app, use a message queue (e.g., Redis Pub/Sub)
-                # For simplicity, we poll the database every few seconds.
-                time.sleep(5)
-
-                new_notifs = Notification.query.filter(
-                    Notification.user_id == student_id,
-                    Notification.timestamp > last_check_time
-                ).order_by(Notification.timestamp.asc()).all()
-
-                for notif in new_notifs:
-                    yield f"data: {json.dumps({'message': notif.message, 'type': notif.type})}\n\n"
-                last_check_time = datetime.now()
-                db.session.remove() # Explicitly close the session to return connection to pool
-
-    return Response(stream_with_context(event_stream()), mimetype='text/event-stream')
+    return ("", 204)
 
 
 # =========================
@@ -5242,27 +5281,51 @@ def create_app(config_object=None):
 
         try:
             if "student" in session:
-                unread_count = Notification.query.filter_by(
-                    user_id=session["student"],
-                    is_read=False
-                ).count()
+                cache = session.get("nav_counts_cache") or {}
+                now = time.time()
+                if (
+                    cache.get("role") == "student"
+                    and cache.get("user_id") == session["student"]
+                    and now - cache.get("ts", 0) < 20
+                ):
+                    unread_count = cache.get("unread_count", 0)
+                    unread_message_count = cache.get("unread_message_count", 0)
+                else:
+                    unread_count = Notification.query.filter_by(
+                        user_id=session["student"],
+                        is_read=False
+                    ).count()
 
-                unread_message_count = PrivateMessage.query.filter_by(
-                    receiver_id=session["student"],
-                    is_read=False
-                ).count()
+                    unread_message_count = PrivateMessage.query.filter_by(
+                        receiver_id=session["student"],
+                        is_read=False
+                    ).count()
+                    session["nav_counts_cache"] = {
+                        "role": "student",
+                        "user_id": session["student"],
+                        "ts": now,
+                        "unread_count": unread_count,
+                        "unread_message_count": unread_message_count,
+                    }
 
-                student = Student.query.filter_by(
-                    student_id=session["student"]
-                ).first()
-
+                student = getattr(g, "current_student", None)
                 if student and student.profile_pic:
                     current_user_pic = student.profile_pic
 
             elif "admin" in session:
-                admin_unread_count = AdminNotification.query.filter_by(
-                    is_read=False
-                ).count()
+                cache = session.get("nav_counts_cache") or {}
+                now = time.time()
+                if cache.get("role") == "admin" and now - cache.get("ts", 0) < 20:
+                    admin_unread_count = cache.get("admin_unread_count", 0)
+                else:
+                    admin_unread_count = AdminNotification.query.filter_by(
+                        is_read=False
+                    ).count()
+                    session["nav_counts_cache"] = {
+                        "role": "admin",
+                        "ts": now,
+                        "admin_unread_count": admin_unread_count,
+                    }
         except Exception:
             db.session.rollback()
             app.logger.warning("Global navigation counters are unavailable for this request.", exc_info=True)
@@ -5278,9 +5341,21 @@ def create_app(config_object=None):
     @app.before_request
     def before_request_handlers():
 
+        g.request_started_at = time.perf_counter()
         g.verify_password_and_upgrade = verify_password_and_upgrade
+        g.current_student = None
+        lightweight_endpoints = {"static", "service_worker", "manifest", "main.stream"}
 
-        if request.endpoint not in {"main.upload_allowed_students", "main.add_lost_item"}:
+        if request.endpoint not in lightweight_endpoints and "student" in session:
+            try:
+                g.current_student = Student.query.filter_by(
+                    student_id=session["student"]
+                ).first()
+            except Exception:
+                db.session.rollback()
+                app.logger.warning("Unable to load current student for this request.", exc_info=True)
+
+        if request.endpoint not in lightweight_endpoints | {"main.upload_allowed_students", "main.add_lost_item"}:
 
             for file_storage in request.files.values():
 
@@ -5293,6 +5368,23 @@ def create_app(config_object=None):
                         400,
                         description="The uploaded file does not match a supported file type.",
                     )
+
+    @app.after_request
+    def log_slow_requests(response):
+        started_at = getattr(g, "request_started_at", None)
+        if started_at is not None:
+            elapsed_ms = (time.perf_counter() - started_at) * 1000
+            threshold_ms = app.config.get("SLOW_REQUEST_LOG_MS", 700)
+            if elapsed_ms >= threshold_ms and request.endpoint not in {"static", "main.stream"}:
+                app.logger.warning(
+                    "Slow request: %.0fms %s %s endpoint=%s status=%s",
+                    elapsed_ms,
+                    request.method,
+                    request.path,
+                    request.endpoint,
+                    response.status_code,
+                )
+        return response
 
     # --------------------------
     # REGISTER BLUEPRINTS

@@ -14,6 +14,7 @@
     .profile-tab { border: 0; background: transparent; color: #607d7f; padding: .8rem 1.1rem; font-weight: 700; border-bottom: 3px solid transparent; }
     .profile-tab.active { color: #155eef; border-color: #60a5fa; }
     .content-card { border: 1px solid rgba(23,37,42,.09); border-radius: 16px; box-shadow: none; }
+    .profile-edit-btn { padding: .42rem .85rem; font-size: .88rem; font-weight: 800; }
     @media (max-width: 576px) { .profile-hero-content { padding: 1.5rem; } .profile-avatar { width: 105px; height: 105px; } .profile-stat { padding: .65rem .75rem; min-width: auto; } }
 </style>
 
@@ -37,7 +38,7 @@
                 </div>
                 <div class="align-self-md-start">
                     {% if student.student_id == current_user_id %}
-                    <a href="{{ url_for('student_settings') }}" class="btn btn-light rounded-pill px-4"><i class="fas fa-sliders me-2"></i>Edit profile</a>
+                    <a href="{{ url_for('student_settings') }}" class="btn btn-light btn-sm rounded-pill profile-edit-btn"><i class="fas fa-pen me-1"></i>Edit profile</a>
                     {% elif session.get('student') and not student.is_admin_profile %}
                     <form action="{{ url_for('follow_user', student_id=student.student_id) }}" method="POST" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
