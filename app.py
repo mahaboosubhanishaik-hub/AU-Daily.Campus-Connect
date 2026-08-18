@@ -2569,14 +2569,23 @@ def delete_poll(poll_id):
     current_user = session.get('student') or session.get('admin')
 
     if poll.created_by == current_user or 'admin' in session:
+        # Delete votes first
+        for option in poll.options:
+            PollVote.query.filter_by(option_id=option.id).delete()
+
+        # Delete poll options
+        for option in poll.options:
+            db.session.delete(option)
+
+        # Delete poll
         db.session.delete(poll)
+
         db.session.commit()
         flash("Poll deleted successfully.")
     else:
         flash("You are not authorized to delete this poll.")
 
     return redirect(url_for('main.polls'))
-
 # =========================
 # STUDENT PROJECT SHOWCASE
 # =========================
