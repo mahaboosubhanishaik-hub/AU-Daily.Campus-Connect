@@ -166,6 +166,34 @@ class LoginFlowTests(unittest.TestCase):
             query_mock.return_value.filter_by.side_effect = SQLAlchemyError("db unavailable")
             self.app_module.clear_login_rate_limit("fallback:test")
 
+    def test_delete_poll_with_votes_succeeds(self):
+        student = self._create_student()
+        poll = self.app_module.Poll(question="Test Poll", created_by=student.student_id)
+        option = self.app_module.PollOption(text="Test Option", poll=poll)
+        self.app_module.db.session.add(poll)
+        self.app_module.db.session.add(option)
+        self.app_module.db.session.commit()
+
+        vote = self.app_module.PollVote(user_id=student.student_id, poll_id=poll.id, option_id=option.id)
+        self.app_module.db.session.add(vote)
+        self.app_module.db.session.commit()
+
+        self.app_module.db.session.delete(poll)
+        self.app_module.db.session.commit()
+
+        self.assertIsNone(self.app_module.Poll.query.get(poll.id))
+        self.assertIsNone(self.app_module.PollOption.query.get(option.id))
+        self.assertIsNone(self.app_module.PollVote.query.get(vote.id))
+
+    def test_clear_login_rate_limit_falls_back_when_db_is_unavailable(self):
+        with patch.object(
+            self.app_module.AuthRateLimit,
+            "query",
+            new_callable=PropertyMock,
+        ) as query_mock:
+            query_mock.return_value.filter_by.side_effect = SQLAlchemyError("db unavailable")
+            self.app_module.clear_login_rate_limit("fallback:test")
+
 
 if __name__ == "__main__":
     unittest.main()

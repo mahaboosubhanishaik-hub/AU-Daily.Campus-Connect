@@ -33,6 +33,7 @@ from app import (
     record_failed_login, # This import is not used in the diff, but kept for other functions in auth.py
     _handle_login_attempt, # New import for the refactored login logic
     require_csrf,
+    Poll,
     csrf_token,
     send_admin_alert,
     valid_password,
@@ -40,6 +41,9 @@ from app import (
 
 
 auth_bp = Blueprint("auth", __name__)
+
+# Add cascade delete for PollVote
+Poll.votes = db.relationship('PollVote', backref='poll', cascade="all, delete-orphan")
 
 
 @auth_bp.route("/student/login", methods=["GET", "POST"])

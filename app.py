@@ -2559,33 +2559,7 @@ def vote(poll_id, option_id):
 
     return redirect(url_for('main.polls'))
 
-@bp.route('/delete_poll/<int:poll_id>', methods=['POST'])
-@require_csrf
-def delete_poll(poll_id):
-    if 'student' not in session and 'admin' not in session:
-        return redirect(url_for('auth.student_login'))
 
-    poll = Poll.query.get_or_404(poll_id)
-    current_user = session.get('student') or session.get('admin')
-
-    if poll.created_by == current_user or 'admin' in session:
-        # Delete votes first
-        for option in poll.options:
-            PollVote.query.filter_by(option_id=option.id).delete()
-
-        # Delete poll options
-        for option in poll.options:
-            db.session.delete(option)
-
-        # Delete poll
-        db.session.delete(poll)
-
-        db.session.commit()
-        flash("Poll deleted successfully.")
-    else:
-        flash("You are not authorized to delete this poll.")
-
-    return redirect(url_for('main.polls'))
 # =========================
 # STUDENT PROJECT SHOWCASE
 # =========================
@@ -4003,6 +3977,7 @@ def student_settings():
         if action == 'update_info':
             new_email = request.form.get('email')
             # Check uniqueness if email changed
+            department = request.form.get('department')
             if new_email != student.email and Student.query.filter_by(email=new_email).first():
                 flash("Email already in use by another account.")
             else:
@@ -4016,6 +3991,8 @@ def student_settings():
                 student.email = new_email
                 student.phone = request.form.get('phone')
                 student.graduation_year = graduation_year
+                if department in DEPARTMENTS:
+                    student.department = department
                 db.session.commit()
                 flash("Profile information updated successfully.")
 
@@ -4044,7 +4021,7 @@ def student_settings():
 
         return redirect(url_for('main.student_settings'))
 
-    return render_template("student_settings.html", student=student)
+    return render_template("student_settings.html", student=student, departments=DEPARTMENTS)
 
 @bp.route('/student/update_pic', methods=['POST'])
 @require_csrf

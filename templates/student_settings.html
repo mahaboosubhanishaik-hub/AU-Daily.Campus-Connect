@@ -69,7 +69,15 @@
         <div class="card border-0 shadow-sm mb-4"><div class="card-header bg-white py-3"><h5 class="mb-0 fw-bold h6">Personal information</h5></div><div class="card-body p-4">
             <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="update_info">
                 <div class="mb-3"><label class="form-label small text-muted fw-bold">FULL NAME</label><input type="text" name="name" class="form-control" value="{{ student.name }}" required></div>
-                <div class="mb-3"><label class="form-label small text-muted fw-bold">EMAIL ADDRESS</label><input type="email" name="email" class="form-control" value="{{ student.email }}" required></div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6"><label class="form-label small text-muted fw-bold">EMAIL ADDRESS</label><input type="email" name="email" class="form-control" value="{{ student.email }}" required></div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted fw-bold">DEPARTMENT</label>
+                        <select name="department" class="form-select" required>
+                            {% for dept in departments %}<option value="{{ dept }}" {% if dept == student.department %}selected{% endif %}>{{ dept }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
                 <div class="row g-3 mb-3"><div class="col-md-6"><label class="form-label small text-muted fw-bold">PHONE NUMBER</label><input type="tel" name="phone" class="form-control" value="{{ student.phone }}" required></div><div class="col-md-6"><label class="form-label small text-muted fw-bold">GRADUATION YEAR</label><input type="number" name="graduation_year" class="form-control" value="{{ student.graduation_year or '' }}" placeholder="e.g. 2026"></div></div>
                 <div class="text-end"><button type="submit" class="btn btn-primary rounded-pill px-4">Save changes</button></div>
             </form>
